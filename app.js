@@ -176,19 +176,22 @@ function renderDashboard(container) {
     inv.status === 'unpaid' && new Date(inv.due_date) < new Date()
   ).reduce((sum, inv) => sum + (inv.total || 0), 0);
 
+  // Get currency from profile or first client, default to CZK
+  const defaultCurrency = state.profile?.currency || state.clients[0]?.currency || 'CZK';
+
   container.innerHTML = `
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">${t('totalInvoiced')}</div>
-        <div class="stat-value">$${totalInvoiced.toFixed(2)}</div>
+        <div class="stat-value">${formatCurrency(totalInvoiced)} ${defaultCurrency}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">${t('totalReceived')}</div>
-        <div class="stat-value">$${totalReceived.toFixed(2)}</div>
+        <div class="stat-value">${formatCurrency(totalReceived)} ${defaultCurrency}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">${t('totalOverdue')}</div>
-        <div class="stat-value">$${totalOverdue.toFixed(2)}</div>
+        <div class="stat-value">${formatCurrency(totalOverdue)} ${defaultCurrency}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">${t('clientCount')}</div>
@@ -210,6 +213,7 @@ function renderDashboard(container) {
           <tr>
             <th>#</th>
             <th>${t('date')}</th>
+            <th>${t('client')}</th>
             <th>${t('description')}</th>
             <th>${t('type')}</th>
             <th>${t('amount')}</th>
@@ -219,14 +223,21 @@ function renderDashboard(container) {
         </thead>
         <tbody>
           ${state.invoices.length === 0 ? `
-            <tr><td colspan="7" class="text-center text-muted">${t('noData')}</td></tr>
-          ` : state.invoices.map((inv, i) => `
+            <tr><td colspan="8" class="text-center text-muted">${t('noData')}</td></tr>
+          ` : state.invoices.map((inv, i) => {
+            const client = state.clients.find(c => c.id === inv.client_id);
+            const currency = client?.currency || 'CZK';
+            const items = JSON.parse(inv.items || '[]');
+            const description = items.length > 0 ? items[0].description : '';
+            const truncatedDesc = description.length > 30 ? description.substring(0, 30) + '...' : description;
+            return `
             <tr>
               <td>${i + 1}</td>
               <td>${formatDate(inv.created_at)}</td>
-              <td>${inv.description || '-'}</td>
+              <td>${client?.name || '-'}</td>
+              <td title="${description}">${truncatedDesc || '-'}</td>
               <td>${t('invoice')}</td>
-              <td>$${inv.total?.toFixed(2) || '0.00'}</td>
+              <td>${formatCurrency(inv.total || 0)} ${currency}</td>
               <td>
                 <span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}">
                   ${t(inv.status || 'pending')}
@@ -239,7 +250,8 @@ function renderDashboard(container) {
                 <button class="action-btn" onclick="window.deleteInvoice('${inv.id}')" title="${t('delete')}">🗑️</button>
               </td>
             </tr>
-          `).join('')}
+            `;
+          }).join('')}
         </tbody>
       </table>
     </div>
@@ -973,30 +985,24 @@ async function restoreData(file) {
     const b = JSON.parse(e.target.result);
     if (!confirm('Replace everything?')) return;
     const u = state.currentUser.id;
-    await database.saveProfile({...b.profile, user_id: u});
-    await Promise.all(b.clients.map(c => database.saveClient({...c, user_id: u})));
-    await Promise.all(b.jobs.map(j => database.saveJob({...j, user_id: u})));
-    await Promise.all(b.timesheets.map(t => database.saveTimesheet({...t, user_id: u})));
-    await Promise.all(b.invoices.map(i => database.saveInvoice({...i, user_id: u})));
-    await loadData(); showView('dashboard'); showToast('Restored');
-  };
-}  // ← this brace was missing
 
-// Global Window Functions for onclick handlers
-window.showView = showView;
+    // 1. profile
+    if (b.profile) await database.saveProfile({...b.profile, user_id: u});
+    // 2. clients
+    for (const c of b.clients) await database.saveClient({...c, user_id: u});
+    // 3. jobs
+    for (const j of b.jobs)       await database.saveJob({...j, user_id: u});
+    // 4. timesheets
+    for (const t of b.timesheets) await database.saveTimesheet({...t, user_id: u});
+    // 5. invoices
+    for (const i of b.invoices)   await database.saveInvoice({...i, user_id: u});
 
-// Global Window Functions for onclick handlers
-window.showView = showView;
-
-window.editClient = (id) => showClientForm(id);
-window.deleteClient = async (id) => {
-  if (confirm(t('confirmDelete'))) {
-    await database.deleteClient(id);
     await loadData();
-    showView('clients');
-    showToast(t('deleteSuccess'));
-  }
-};
+    showView('dashboard');
+    showToast('Restored');
+  };
+}
+
 
 window.editJob = (id) => showJobForm(id);
 window.createInvoiceFromJob = createInvoiceFromJob;
@@ -1194,8 +1200,8 @@ window.viewInvoice = async (id) => {
             <tr>
               <td>${item.description}</td>
               <td class="right">${item.hours.toFixed(2)}</td>
-              <td class="right">${item.rate?.toFixed(2)} ${client?.currency || 'USD'}</td>
-              <td class="right">${(item.hours * item.rate).toFixed(2)} ${client?.currency || 'USD'}</td>
+              <td class="right">${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}</td>
+              <td class="right">${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -1203,7 +1209,7 @@ window.viewInvoice = async (id) => {
 
       <div class="total-section">
         <div class="total-line">
-          ${isCzech ? 'CELKEM K ÚHRADĚ / TOTAL DUE:' : 'TOTAL DUE:'} ${inv.total?.toFixed(2)} ${client?.currency || 'USD'}
+          ${isCzech ? 'CELKEM K ÚHRADĚ / TOTAL DUE:' : 'TOTAL DUE:'} ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}
         </div>
       </div>
 
@@ -1290,8 +1296,8 @@ window.downloadInvoice = async (id) => {
     }
     doc.text(item.description, 20, y);
     doc.text(item.hours.toFixed(2), 120, y, { align: 'right' });
-    doc.text(`${item.rate.toFixed(2)} ${client?.currency || 'USD'}`, 150, y, { align: 'right' });
-    doc.text(`${(item.hours * item.rate).toFixed(2)} ${client?.currency || 'USD'}`, 190, y, { align: 'right' });
+    doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
+    doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
     y += 7;
   });
 
@@ -1303,7 +1309,7 @@ window.downloadInvoice = async (id) => {
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
   doc.text(isCzech ? 'CELKEM / TOTAL:' : 'TOTAL:', 120, y);
-  doc.text(`${inv.total?.toFixed(2)} ${client?.currency || 'USD'}`, 190, y, { align: 'right' });
+  doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
   y += 15;
   doc.setFontSize(10);
@@ -1355,6 +1361,10 @@ window.deleteForever = async (table, id) => {
 };
 
 // Utility Functions
+function formatCurrency(amount, currency = 'CZK') {
+  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function formatDate(dateString) {
   if (!dateString) return '-';
   const date = new Date(dateString);
