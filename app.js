@@ -1057,49 +1057,51 @@ window.viewInvoice = async (id) => {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
           font-family: Arial, sans-serif;
-          padding: 40px;
-          max-width: 800px;
+          padding: 50px;
+          max-width: 900px;
           margin: 0 auto;
           color: #000;
-          line-height: 1.5;
+          background: #fff;
+        }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 30px;
         }
         .invoice-title {
-          font-size: 32px;
+          font-size: 36px;
           font-weight: bold;
-          margin-bottom: 20px;
         }
-        .header-info {
+        .invoice-meta {
           text-align: right;
-          margin-bottom: 30px;
           font-size: 14px;
+          line-height: 1.8;
         }
-        .header-info div {
-          margin-bottom: 4px;
-        }
-        .header-info strong {
-          display: inline-block;
-          min-width: 180px;
+        .invoice-meta div {
+          margin-bottom: 2px;
         }
         .separator {
-          border-top: 2px solid #000;
-          margin: 30px 0;
+          border-bottom: 2px solid #000;
+          margin: 25px 0;
         }
         .parties {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 40px;
+          margin: 30px 0 40px 0;
         }
         .party {
           width: 48%;
         }
-        .party-title {
+        .party h3 {
+          font-size: 15px;
           font-weight: bold;
-          font-size: 16px;
-          margin-bottom: 10px;
+          margin-bottom: 8px;
         }
-        .party-content {
+        .party p {
+          margin: 0;
           font-size: 14px;
-          line-height: 1.6;
+          line-height: 1.5;
         }
         table {
           width: 100%;
@@ -1107,90 +1109,92 @@ window.viewInvoice = async (id) => {
           margin: 30px 0;
         }
         th {
-          background: #f5f5f5;
-          padding: 12px 8px;
+          background: #f8f8f8;
+          padding: 12px;
           text-align: left;
           font-weight: bold;
-          border-bottom: 2px solid #000;
-          font-size: 14px;
+          font-size: 13px;
+          border-bottom: 2px solid #333;
         }
+        th.right { text-align: right; }
         td {
-          padding: 10px 8px;
-          border-bottom: 1px solid #ddd;
+          padding: 12px;
           font-size: 14px;
+          border-bottom: 1px solid #e0e0e0;
         }
-        .text-right {
+        td.right { text-align: right; }
+        .separator-thin {
+          border-bottom: 1px solid #000;
+          margin: 20px 0 10px 0;
+        }
+        .total-section {
           text-align: right;
-        }
-        .totals {
           margin-top: 30px;
-          text-align: right;
         }
-        .total-row {
-          font-size: 18px;
+        .total-line {
+          font-size: 20px;
           font-weight: bold;
-          margin-top: 10px;
-          padding-top: 10px;
+          padding: 15px 0;
           border-top: 2px solid #000;
         }
-        .bank-info {
-          margin-top: 40px;
-          font-size: 14px;
+        .footer-info {
+          margin-top: 50px;
+          font-size: 13px;
+          line-height: 1.8;
         }
-        .bank-info strong {
-          display: inline-block;
-          min-width: 150px;
+        .footer-info p {
+          margin: 3px 0;
         }
         @media print {
-          body { padding: 20px; }
+          body { padding: 30px; }
           .no-print { display: none; }
         }
-        .btn {
-          padding: 12px 24px;
+        .print-btn {
+          padding: 14px 28px;
           background: #6366f1;
           color: white;
           border: none;
-          border-radius: 5px;
+          border-radius: 6px;
           cursor: pointer;
-          font-size: 16px;
-          margin-top: 30px;
+          font-size: 15px;
+          margin-top: 40px;
+          font-weight: 500;
         }
-        .btn:hover {
+        .print-btn:hover {
           background: #4f46e5;
         }
       </style>
     </head>
     <body>
-      <h1 class="invoice-title">${isCzech ? 'FAKTURA' : 'INVOICE'}</h1>
-
-      <div class="header-info">
-        <div><strong>${isCzech ? 'Invoice #:' : 'Invoice #:'}</strong> ${inv.id}</div>
-        <div><strong>${isCzech ? 'Datum vystavení / Issue date:' : 'Issue date:'}</strong> ${formatDate(inv.created_at)}</div>
-        <div><strong>${isCzech ? 'Datum splatnosti / Due date:' : 'Due date:'}</strong> ${formatDate(inv.due_date)}</div>
-        <div><strong>${isCzech ? 'Forma úhrady / Payment Method:' : 'Payment Method:'}</strong> ${isCzech ? 'Bankovním převodem' : 'Bank transfer'}</div>
+      <div class="header">
+        <h1 class="invoice-title">${isCzech ? 'FAKTURA' : 'INVOICE'}</h1>
+        <div class="invoice-meta">
+          <div><strong>Invoice #:</strong> ${inv.id}</div>
+          <div><strong>${isCzech ? 'Issue date:' : 'Issue date:'}</strong> ${formatDate(inv.created_at)}</div>
+          <div><strong>${isCzech ? 'Due date:' : 'Due date:'}</strong> ${formatDate(inv.due_date)}</div>
+          <div><strong>${isCzech ? 'Payment Method:' : 'Payment Method:'}</strong> ${isCzech ? 'Bank transfer' : 'Bank transfer'}</div>
+        </div>
       </div>
 
       <div class="separator"></div>
 
       <div class="parties">
         <div class="party">
-          <div class="party-title">${isCzech ? 'Dodavatel' : 'Supplier'}</div>
-          <div class="party-content">
+          <h3>${isCzech ? 'Dodavatel' : 'Supplier'}</h3>
+          <p>
             <strong>${state.profile?.name || 'Your Business'}</strong><br>
             ${state.profile?.address || ''}<br>
-            ${state.profile?.email || ''}<br>
             ${state.profile?.id_numbers?.map(id => `${id.label}: ${id.number}`).join('<br>') || ''}
-          </div>
+          </p>
         </div>
 
         <div class="party">
-          <div class="party-title">${isCzech ? 'Odběratel' : 'Customer'}</div>
-          <div class="party-content">
+          <h3>${isCzech ? 'Odběratel' : 'Customer'}</h3>
+          <p>
             <strong>${client?.name || '-'}</strong><br>
             ${client?.address || ''}<br>
-            ${client?.invoice_email || ''}<br>
             ${client?.id_numbers?.map(id => `${id.label}: ${id.number}`).join('<br>') || ''}
-          </div>
+          </p>
         </div>
       </div>
 
@@ -1198,41 +1202,38 @@ window.viewInvoice = async (id) => {
         <thead>
           <tr>
             <th>${isCzech ? 'Položka / Description' : 'Description'}</th>
-            <th class="text-right">${isCzech ? 'Počet hodin / Hours' : 'Hours'}</th>
-            <th class="text-right">${isCzech ? 'Sazba/hod. / Rate' : 'Rate'}</th>
-            <th class="text-right">${isCzech ? 'Částka / Amount' : 'Amount'}</th>
+            <th class="right">${isCzech ? 'Počet hodin / Hours' : 'Hours'}</th>
+            <th class="right">${isCzech ? 'Sazba/hod. / Rate' : 'Rate'}</th>
+            <th class="right">${isCzech ? 'Částka / Amount' : 'Amount'}</th>
           </tr>
         </thead>
         <tbody>
           ${items.map(item => `
             <tr>
               <td>${item.description}</td>
-              <td class="text-right">${item.hours.toFixed(2)}</td>
-              <td class="text-right">${item.rate?.toFixed(2)} ${client?.currency || 'USD'}</td>
-              <td class="text-right">${(item.hours * item.rate).toFixed(2)} ${client?.currency || 'USD'}</td>
+              <td class="right">${item.hours.toFixed(2)}</td>
+              <td class="right">${item.rate?.toFixed(2)} ${client?.currency || 'USD'}</td>
+              <td class="right">${(item.hours * item.rate).toFixed(2)} ${client?.currency || 'USD'}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
 
-      <div class="totals">
-        <div class="total-row">
-          <strong>${isCzech ? 'CELKEM K ÚHRADĚ / TOTAL DUE:' : 'TOTAL DUE:'}</strong>
-          ${inv.total?.toFixed(2)} ${client?.currency || 'USD'}
+      <div class="total-section">
+        <div class="total-line">
+          ${isCzech ? 'CELKEM K ÚHRADĚ / TOTAL DUE:' : 'TOTAL DUE:'} ${inv.total?.toFixed(2)} ${client?.currency || 'USD'}
         </div>
       </div>
 
-      <div class="bank-info">
-        <div><strong>${isCzech ? 'Bankovní spojení / Bank Details:' : 'Bank Details:'}</strong></div>
-        ${state.profile?.bank_accounts?.map(acc => `
-          <div>${acc.label}: ${acc.number}</div>
-        `).join('') || ''}
-        <div style="margin-top: 10px;">${isCzech ? 'Nejsem plátce DPH. / Not a VAT payer.' : 'Not a VAT payer.'}</div>
+      <div class="footer-info">
+        <p><strong>${isCzech ? 'Bankovní spojení / Bank Details:' : 'Bank Details:'}</strong></p>
+        ${state.profile?.bank_accounts?.map(acc => `<p>Bank: ${acc.number}</p>`).join('') || '<p>Not specified</p>'}
+        <p style="margin-top: 15px;">${isCzech ? 'Nejsem plátce DPH. / Not a VAT payer.' : 'Not a VAT payer.'}</p>
       </div>
 
       <div class="no-print">
-        <button class="btn" onclick="window.print()">
-          ${isCzech ? 'Tisknout / Uložit jako PDF' : 'Print / Save as PDF'}
+        <button class="print-btn" onclick="window.print()">
+          ${isCzech ? 'Print / Save as PDF' : 'Print / Save as PDF'}
         </button>
       </div>
     </body>
