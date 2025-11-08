@@ -822,6 +822,30 @@ function showJobForm(jobId = null) {
         showToast('Save failed', 'error');
       }
     });
+    const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
+    const rateInput = document.querySelector('#jobForm input[name="rate"]');
+    const currencySelect = document.querySelector('#jobForm select[name="currency"]');
+
+    if (clientSelect && rateInput && currencySelect) {
+      const applyClientDefaults = () => {
+        const client = state.clients.find(c => c.id === clientSelect.value);
+        if (!client) {
+          rateInput.value = '';
+          currencySelect.value = '';
+          return;
+        }
+        rateInput.value = client.rate || '';
+        currencySelect.value = client.currency || 'CZK';
+      };
+
+      clientSelect.addEventListener('change', applyClientDefaults);
+
+      if (clientSelect.value && (!rateInput.value || !currencySelect.value)) {
+        applyClientDefaults();
+      }
+    }
+
+
   }
 
 
