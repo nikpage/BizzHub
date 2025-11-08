@@ -1227,7 +1227,17 @@ window.viewInvoice = async (id) => {
           <p>
             <strong>${state.profile?.name || 'Your Business'}</strong><br>
             ${state.profile?.address || ''}<br>
-            ${state.profile?.id_numbers?.map(id => `${id.label}: ${id.number}`).join('<br>') || ''}
+            ${(() => {
+  const parts = [];
+  const ids = state.profile?.id_entries || [];
+  if (Array.isArray(ids) && ids.length) return ids.map(id => `${id.label}: ${id.number}`).join('<br>');
+  for (let i=1;i<=4;i++){
+    const label = state.profile?.[`id_label_${i}`];
+    const num = state.profile?.[`id_number_${i}`];
+    if (label || num) parts.push(`${label || 'ID'}: ${num || ''}`);
+  }
+  return parts.join('<br>');
+})() || ''}
           </p>
         </div>
 
@@ -1236,7 +1246,17 @@ window.viewInvoice = async (id) => {
           <p>
             <strong>${client?.name || '-'}</strong><br>
             ${client?.address || ''}<br>
-            ${client?.id_numbers?.map(id => `${id.label}: ${id.number}`).join('<br>') || ''}
+            ${(() => {
+  const parts = [];
+  const ids = client?.id_entries || [];
+  if (Array.isArray(ids) && ids.length) return ids.map(id => `${id.label}: ${id.number}`).join('<br>');
+  for (let i=1;i<=4;i++){
+    const label = client?.[`id_label_${i}`];
+    const num = client?.[`id_number_${i}`];
+    if (label || num) parts.push(`${label || 'ID'}: ${num || ''}`);
+  }
+  return parts.join('<br>');
+})() || ''}
           </p>
         </div>
       </div>
@@ -1317,6 +1337,16 @@ window.downloadInvoice = async (id) => {
   let y = 78;
   doc.text(state.profile?.name || 'Your Business', 20, y);
   if (state.profile?.address) { y += 5; doc.text(state.profile.address, 20, y); }
+if (state.profile?.email) { y += 5; doc.text(state.profile.email, 20, y); }
+if (Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length) {
+  state.profile.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); });
+} else {
+  for (let i=1;i<=4;i++){
+    const l = state.profile?.[`id_label_${i}`];
+    const n = state.profile?.[`id_number_${i}`];
+    if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 20, y); }
+  }
+}
   if (state.profile?.email) { y += 5; doc.text(state.profile.email, 20, y); }
 
   doc.setFontSize(12);
@@ -1328,6 +1358,36 @@ window.downloadInvoice = async (id) => {
   doc.text(client?.name || '-', 110, y);
   if (client?.address) { y += 5; doc.text(client.address, 110, y); }
   if (client?.invoice_email) { y += 5; doc.text(client.invoice_email, 110, y); }
+  if (Array.isArray(client?.id_entries) && client.id_entries.length) {
+    client.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
+  } else {
+    for (let i=1;i<=4;i++){
+      const l = client?.[`id_label_${i}`];
+      const n = client?.[`id_number_${i}`];
+      if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 110, y); }
+    }
+  }
+
+  if (Array.isArray(client?.id_entries) && client.id_entries.length) {
+    client.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
+  } else {
+    for (let i=1;i<=4;i++){
+      const l = client?.[`id_label_${i}`];
+      const n = client?.[`id_number_${i}`];
+      if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 110, y); }
+    }
+  }
+
+  if (Array.isArray(client?.id_entries) && client.id_entries.length) {
+    client.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
+  } else {
+    for (let i=1;i<=4;i++){
+      const l = client?.[`id_label_${i}`];
+      const n = client?.[`id_number_${i}`];
+      if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 110, y); }
+    }
+  }
+
 
   y = Math.max(y, 95) + 10;
 
