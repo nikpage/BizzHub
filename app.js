@@ -1029,7 +1029,7 @@ window.viewInvoice = async (id) => {
   if (!inv) return;
 
   const client = state.clients.find(c => c.id === inv.client_id);
-  const items = JSON.parse(inv.items || '[]');
+  const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
   const lang = localStorage.getItem('lang') || 'en';
   const isCzech = lang === 'cs' || client?.czech_invoice;
 
@@ -1234,7 +1234,7 @@ window.downloadInvoice = async (id) => {
   if (!inv) return;
 
   const client = state.clients.find(c => c.id === inv.client_id);
-  const items = JSON.parse(inv.items || '[]');
+  const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
   const lang = localStorage.getItem('lang') || 'en';
   const isCzech = lang === 'cs' || client?.czech_invoice;
 
