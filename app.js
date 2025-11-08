@@ -970,6 +970,7 @@ async function restoreData(file) {
 
   const reader = new FileReader();
   reader.onload = async (e) => {
+          await database.deleteAllUserData(state.currentUser.id);
     try {
       const backup = JSON.parse(e.target.result);
 
