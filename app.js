@@ -672,11 +672,24 @@ function showClientForm(clientId = null) {
       <input type="hidden" name="id" value="${client.id || ''}">
     </form>
   `, async () => {
-    const form = document.getElementById('clientForm');
-    const formData = new FormData(form);
     const data = Object.fromEntries(formData);
+
+    // inherit client rate/currency if blank
+    if (data.client_id) {
+      const client = state.clients.find(c => c.id === data.client_id);
+      if (client) {
+        if (!data.rate || data.rate === '') data.rate = client.rate || 0;
+        if (!data.currency || data.currency === '') data.currency = client.currency || 'USD';
+      }
+    }
+
     if (!data.id) delete data.id;
+    if (data.client_id === '') delete data.client_id;
     if (data.rate === '') delete data.rate;
+    if (data.hours === '') delete data.hours;
+    if (data.start_date === '') delete data.start_date;
+    if (data.end_date === '') delete data.end_date;
+
     console.log('Saving client data:', JSON.stringify(data, null, 2));
     try {
       await database.saveClient(data);
@@ -818,11 +831,22 @@ function showTimesheetForm(timesheetId = null) {
   `, async () => {
     const form = document.getElementById('timesheetForm');
     const formData = new FormData(form);
-    const data = Object.fromEntries(formData);
+  const data = Object.fromEntries(formData);
 
-    data.billed = document.getElementById('billedCheck').checked;
-    if (!data.id) delete data.id;
-        if (data.hours === '') delete data.hours;
+  data.billed = document.getElementById('billedCheck').checked;
+
+  // inherit client rate/currency if missing
+  if (data.client_id) {
+    const client = state.clients.find(c => c.id === data.client_id);
+    if (client) {
+      if (!data.rate || data.rate === '') data.rate = client.rate || 0;
+      if (!data.currency || data.currency === '') data.currency = client.currency || 'USD';
+    }
+  }
+
+  if (!data.id) delete data.id;
+  if (data.hours === '') delete data.hours;
+
 
     await database.saveTimesheet(data);
     await loadData();
