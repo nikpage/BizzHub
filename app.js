@@ -880,6 +880,28 @@ function showTimesheetForm(timesheetId = null) {
           <textarea name="notes">${ts.notes || ''}</textarea>
         </div>
 
+        <div class="form-group">
+          <label>${t('rate')}</label>
+          <input type="number" name="rate" value="${ts.rate || ''}" step="0.01">
+        </div>
+
+        <div class="form-group">
+          <label>${t('currency')}</label>
+          <select name="currency">
+            ${(() => {
+              const client = ts.client_id ? state.clients.find(c => c.id === ts.client_id) : null;
+              const cur = ts.currency || client?.currency || 'CZK';
+              return `
+                <option value="USD" ${cur === 'USD' ? 'selected' : ''}>USD</option>
+                <option value="EUR" ${cur === 'EUR' ? 'selected' : ''}>EUR</option>
+                <option value="CZK" ${cur === 'CZK' ? 'selected' : ''}>CZK</option>
+                <option value="GBP" ${cur === 'GBP' ? 'selected' : ''}>GBP</option>
+              `;
+            })()}
+          </select>
+        </div>
+
+
         <div class="form-group checkbox-group">
           <input type="checkbox" name="billed" id="billedCheck" ${ts.billed ? 'checked' : ''}>
           <label for="billedCheck">${t('billed')}</label>
