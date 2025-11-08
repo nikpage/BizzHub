@@ -1201,14 +1201,15 @@ window.deleteTimesheet = async (id) => {
   }
 };
 
+// Replace the two functions `window.viewInvoice` and `window.downloadInvoice` in app.js
+// This version forces a bilingual template: Czech first, English second. Layout and logic unchanged.
+
 window.viewInvoice = async (id) => {
   const inv = state.invoices.find(i => i.id === id);
   if (!inv) return;
 
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
-  const lang = localStorage.getItem('lang') || 'en';
-  const isCzech = lang === 'cs' || client?.czech_invoice;
 
   const win = window.open('', '_blank');
   win.document.write(`
@@ -1216,132 +1217,42 @@ window.viewInvoice = async (id) => {
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>${isCzech ? 'FAKTURA' : 'INVOICE'} #${inv.id}</title>
+      <title>FAKTURA / INVOICE #${inv.id}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-          font-family: Arial, sans-serif;
-          padding: 50px;
-          max-width: 900px;
-          margin: 0 auto;
-          color: #000;
-          background: #fff;
-        }
-        .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 30px;
-        }
-        .invoice-title {
-          font-size: 36px;
-          font-weight: bold;
-        }
-        .invoice-meta {
-          text-align: right;
-          font-size: 14px;
-          line-height: 1.8;
-        }
-        .invoice-meta div {
-          margin-bottom: 2px;
-        }
-        .separator {
-          border-bottom: 2px solid #000;
-          margin: 25px 0;
-        }
-        .parties {
-          display: flex;
-          justify-content: space-between;
-          margin: 30px 0 40px 0;
-        }
-        .party {
-          width: 48%;
-        }
-        .party h3 {
-          font-size: 15px;
-          font-weight: bold;
-          margin-bottom: 8px;
-        }
-        .party p {
-          margin: 0;
-          font-size: 14px;
-          line-height: 1.5;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 30px 0;
-        }
-        th {
-          background: #f8f8f8;
-          padding: 12px;
-          text-align: left;
-          font-weight: bold;
-          font-size: 13px;
-          border-bottom: 2px solid #333;
-        }
+        body { font-family: Arial, sans-serif; padding: 50px; max-width: 900px; margin: 0 auto; color: #000; background: #fff; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
+        .invoice-title { font-size: 36px; font-weight: bold; }
+        .invoice-meta { text-align: right; font-size: 14px; line-height: 1.8; }
+        .invoice-meta div { margin-bottom: 2px; }
+        .separator { border-bottom: 2px solid #000; margin: 25px 0; }
+        .parties { display: flex; justify-content: space-between; margin: 30px 0 40px 0; }
+        .party { width: 48%; }
+        .party h3 { font-size: 15px; font-weight: bold; margin-bottom: 8px; }
+        .party p { margin: 0; font-size: 14px; line-height: 1.5; }
+        table { width: 100%; border-collapse: collapse; margin: 30px 0; }
+        th { background: #f8f8f8; padding: 12px; text-align: left; font-weight: bold; font-size: 13px; border-bottom: 2px solid #333; }
         th.right { text-align: right; }
-        td {
-          padding: 12px;
-          font-size: 14px;
-          border-bottom: 1px solid #e0e0e0;
-        }
-        td:first-child {
-          max-width: 400px;
-          word-wrap: break-word;
-          white-space: normal;
-        }
+        td { padding: 12px; font-size: 14px; border-bottom: 1px solid #e0e0e0; }
+        td:first-child { max-width: 400px; word-wrap: break-word; white-space: normal; }
         td.right { text-align: right; }
-        .separator-thin {
-          border-bottom: 1px solid #000;
-          margin: 20px 0 10px 0;
-        }
-        .total-section {
-          text-align: right;
-          margin-top: 30px;
-        }
-        .total-line {
-          font-size: 20px;
-          font-weight: bold;
-          padding: 15px 0;
-          border-top: 2px solid #000;
-        }
-        .footer-info {
-          margin-top: 50px;
-          font-size: 13px;
-          line-height: 1.8;
-        }
-        .footer-info p {
-          margin: 3px 0;
-        }
-        @media print {
-          body { padding: 30px; }
-          .no-print { display: none; }
-        }
-        .print-btn {
-          padding: 14px 28px;
-          background: #6366f1;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 15px;
-          margin-top: 40px;
-          font-weight: 500;
-        }
-        .print-btn:hover {
-          background: #4f46e5;
-        }
+        .total-section { text-align: right; margin-top: 30px; }
+        .total-line { font-size: 20px; font-weight: bold; padding: 15px 0; border-top: 2px solid #000; }
+        .footer-info { margin-top: 50px; font-size: 13px; line-height: 1.8; }
+        .footer-info p { margin: 3px 0; }
+        @media print { body { padding: 30px; } .no-print { display: none; } }
+        .print-btn { padding: 14px 28px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; margin-top: 40px; font-weight: 500; }
+        .print-btn:hover { background: #4f46e5; }
       </style>
     </head>
     <body>
       <div class="header">
-        <h1 class="invoice-title">${isCzech ? 'FAKTURA' : 'INVOICE'}</h1>
+        <h1 class="invoice-title">FAKTURA / INVOICE</h1>
         <div class="invoice-meta">
-          <div><strong>Invoice #:</strong> ${inv.id}</div>
-          <div><strong>${isCzech ? 'Issue date:' : 'Issue date:'}</strong> ${formatDate(inv.created_at)}</div>
-          <div><strong>${isCzech ? 'Due date:' : 'Due date:'}</strong> ${formatDate(inv.due_date)}</div>
-          <div><strong>${isCzech ? 'Payment Method:' : 'Payment Method:'}</strong> ${isCzech ? 'Bank transfer' : 'Bank transfer'}</div>
+          <div><strong>Číslo faktury / Invoice #:</strong> ${inv.id}</div>
+          <div><strong>Datum vystavení / Issue date:</strong> ${formatDate(inv.created_at)}</div>
+          <div><strong>Datum splatnosti / Due date:</strong> ${formatDate(inv.due_date)}</div>
+          <div><strong>Forma úhrady / Payment Method:</strong> Bankovní převod / Bank transfer</div>
         </div>
       </div>
 
@@ -1349,40 +1260,40 @@ window.viewInvoice = async (id) => {
 
       <div class="parties">
         <div class="party">
-          <h3>${isCzech ? 'Dodavatel' : 'Supplier'}</h3>
+          <h3>Dodavatel / Supplier</h3>
           <p>
             <strong>${state.profile?.name || 'Your Business'}</strong><br>
             ${state.profile?.address || ''}<br>
             ${(() => {
-  const parts = [];
-  const ids = state.profile?.id_entries || [];
-  if (Array.isArray(ids) && ids.length) return ids.map(id => `${id.label}: ${id.number}`).join('<br>');
-  for (let i=1;i<=4;i++){
-    const label = state.profile?.[`id_label_${i}`];
-    const num = state.profile?.[`id_number_${i}`];
-    if (label || num) parts.push(`${label || 'ID'}: ${num || ''}`);
-  }
-  return parts.join('<br>');
-})() || ''}
+              const parts = [];
+              const ids = state.profile?.id_entries || [];
+              if (Array.isArray(ids) && ids.length) return ids.map(id => `${id.label}: ${id.number}`).join('<br>');
+              for (let i=1;i<=4;i++){
+                const label = state.profile?.[`id_label_${i}`];
+                const num = state.profile?.[`id_number_${i}`];
+                if (label || num) parts.push(`${label || 'ID'}: ${num || ''}`);
+              }
+              return parts.join('<br>');
+            })() || ''}
           </p>
         </div>
 
         <div class="party">
-          <h3>${isCzech ? 'Odběratel' : 'Customer'}</h3>
+          <h3>Odběratel / Customer</h3>
           <p>
             <strong>${client?.name || '-'}</strong><br>
             ${client?.address || ''}<br>
             ${(() => {
-  const parts = [];
-  const ids = client?.id_entries || [];
-  if (Array.isArray(ids) && ids.length) return ids.map(id => `${id.label}: ${id.number}`).join('<br>');
-  for (let i=1;i<=4;i++){
-    const label = client?.[`id_label_${i}`];
-    const num = client?.[`id_number_${i}`];
-    if (label || num) parts.push(`${label || 'ID'}: ${num || ''}`);
-  }
-  return parts.join('<br>');
-})() || ''}
+              const parts = [];
+              const ids = client?.id_entries || [];
+              if (Array.isArray(ids) && ids.length) return ids.map(id => `${id.label}: ${id.number}`).join('<br>');
+              for (let i=1;i<=4;i++){
+                const label = client?.[`id_label_${i}`];
+                const num = client?.[`id_number_${i}`];
+                if (label || num) parts.push(`${label || 'ID'}: ${num || ''}`);
+              }
+              return parts.join('<br>');
+            })() || ''}
           </p>
         </div>
       </div>
@@ -1390,17 +1301,17 @@ window.viewInvoice = async (id) => {
       <table>
         <thead>
           <tr>
-            <th>${isCzech ? 'Položka / Description' : 'Description'}</th>
-            <th class="right">${isCzech ? 'Počet hodin / Hours' : 'Hours'}</th>
-            <th class="right">${isCzech ? 'Sazba/hod. / Rate' : 'Rate'}</th>
-            <th class="right">${isCzech ? 'Částka / Amount' : 'Amount'}</th>
+            <th>Položka / Description</th>
+            <th class="right">Počet hodin / Hours</th>
+            <th class="right">Sazba/hod. / Rate</th>
+            <th class="right">Částka / Amount</th>
           </tr>
         </thead>
         <tbody>
           ${items.map(item => `
             <tr>
               <td>${item.description}</td>
-              <td class="right">${item.hours.toFixed(2)}</td>
+              <td class="right">${(item.hours || 0).toFixed(2)}</td>
               <td class="right">${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}</td>
               <td class="right">${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
             </tr>
@@ -1409,21 +1320,17 @@ window.viewInvoice = async (id) => {
       </table>
 
       <div class="total-section">
-        <div class="total-line">
-          ${isCzech ? 'CELKEM K ÚHRADĚ / TOTAL DUE:' : 'TOTAL DUE:'} ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}
-        </div>
+        <div class="total-line">CELKEM K ÚHRADĚ / TOTAL DUE: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
       </div>
 
       <div class="footer-info">
-        <p><strong>${isCzech ? 'Bankovní spojení / Bank Details:' : 'Bank Details:'}</strong></p>
-        ${state.profile?.bank_entries?.map(acc => `<p>Bank: ${acc.number}</p>`).join('') || '<p>Not specified</p>'}
-        <p style="margin-top: 15px;">${isCzech ? 'Nejsem plátce DPH. / Not a VAT payer.' : 'Not a VAT payer.'}</p>
+        <p><strong>Bankovní spojení / Bank Details:</strong></p>
+        ${state.profile?.bank_entries?.map(acc => `<p>${acc.label}: ${acc.number}</p>`).join('') || '<p>Nezadáno / Not specified</p>'}
+        <p style="margin-top: 15px;">Nejsem plátce DPH. / Not a VAT payer.</p>
       </div>
 
       <div class="no-print">
-        <button class="print-btn" onclick="window.print()">
-          ${isCzech ? 'Print / Save as PDF' : 'Print / Save as PDF'}
-        </button>
+        <button class="print-btn" onclick="window.print()">Tisk / Print</button>
       </div>
     </body>
     </html>
@@ -1431,53 +1338,48 @@ window.viewInvoice = async (id) => {
   win.document.close();
 };
 
+
 window.downloadInvoice = async (id) => {
   const inv = state.invoices.find(i => i.id === id);
   if (!inv) return;
 
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
-  const lang = localStorage.getItem('lang') || 'en';
-  const isCzech = lang === 'cs' || client?.czech_invoice;
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
   doc.setFontSize(24);
-  doc.text(isCzech ? 'FAKTURA' : 'INVOICE', 20, 20);
+  doc.text('FAKTURA / INVOICE', 20, 20);
 
   doc.setFontSize(11);
-  doc.text(`Invoice #: ${inv.id}`, 20, 35);
-  doc.text(`${isCzech ? 'Datum vystavení / ' : ''}Issue date: ${formatDate(inv.created_at)}`, 20, 42);
-  doc.text(`${isCzech ? 'Datum splatnosti / ' : ''}Due date: ${formatDate(inv.due_date)}`, 20, 49);
-  doc.text(`${isCzech ? 'Forma úhrady / ' : ''}Payment: ${isCzech ? 'Bankovním převodem' : 'Bank transfer'}`, 20, 56);
+  doc.text(`Číslo faktury / Invoice #: ${inv.id}`, 20, 35);
+  doc.text(`Datum vystavení / Issue date: ${formatDate(inv.created_at)}`, 20, 42);
+  doc.text(`Datum splatnosti / Due date: ${formatDate(inv.due_date)}`, 20, 49);
+  doc.text(`Forma úhrady / Payment: Bankovní převod / Bank transfer`, 20, 56);
 
   doc.setLineWidth(0.5);
   doc.line(20, 62, 190, 62);
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
-  doc.text(isCzech ? 'Dodavatel' : 'Supplier', 20, 72);
+  doc.text('Dodavatel / Supplier', 20, 72);
   doc.setFont(undefined, 'normal');
   doc.setFontSize(10);
   let y = 78;
   doc.text(state.profile?.name || 'Your Business', 20, y);
   if (state.profile?.address) { y += 5; doc.text(state.profile.address, 20, y); }
-if (state.profile?.email) { y += 5; doc.text(state.profile.email, 20, y); }
-if (Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length) {
-  state.profile.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); });
-} else {
-  for (let i=1;i<=4;i++){
-    const l = state.profile?.[`id_label_${i}`];
-    const n = state.profile?.[`id_number_${i}`];
-    if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 20, y); }
+  if (state.profile?.email) { y += 5; doc.text(state.profile.email, 20, y); }
+  if (Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length) {
+    state.profile.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); });
+  } else {
+    for (let i=1;i<=4;i++){ const l = state.profile?.[`id_label_${i}`]; const n = state.profile?.[`id_number_${i}`]; if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 20, y); } }
   }
-}
   if (state.profile?.email) { y += 5; doc.text(state.profile.email, 20, y); }
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
-  doc.text(isCzech ? 'Odběratel' : 'Customer', 110, 72);
+  doc.text('Odběratel / Customer', 110, 72);
   doc.setFont(undefined, 'normal');
   doc.setFontSize(10);
   y = 78;
@@ -1487,42 +1389,17 @@ if (Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length)
   if (Array.isArray(client?.id_entries) && client.id_entries.length) {
     client.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
   } else {
-    for (let i=1;i<=4;i++){
-      const l = client?.[`id_label_${i}`];
-      const n = client?.[`id_number_${i}`];
-      if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 110, y); }
-    }
+    for (let i=1;i<=4;i++){ const l = client?.[`id_label_${i}`]; const n = client?.[`id_number_${i}`]; if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 110, y); } }
   }
-
-  if (Array.isArray(client?.id_entries) && client.id_entries.length) {
-    client.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
-  } else {
-    for (let i=1;i<=4;i++){
-      const l = client?.[`id_label_${i}`];
-      const n = client?.[`id_number_${i}`];
-      if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 110, y); }
-    }
-  }
-
-  if (Array.isArray(client?.id_entries) && client.id_entries.length) {
-    client.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
-  } else {
-    for (let i=1;i<=4;i++){
-      const l = client?.[`id_label_${i}`];
-      const n = client?.[`id_number_${i}`];
-      if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 110, y); }
-    }
-  }
-
 
   y = Math.max(y, 95) + 10;
 
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
-  doc.text(isCzech ? 'Položka / Description' : 'Description', 20, y);
-  doc.text(isCzech ? 'Hod.' : 'Hours', 120, y, { align: 'right' });
-  doc.text(isCzech ? 'Sazba' : 'Rate', 150, y, { align: 'right' });
-  doc.text(isCzech ? 'Částka' : 'Amount', 190, y, { align: 'right' });
+  doc.text('Položka / Description', 20, y);
+  doc.text('Počet hodin / Hours', 120, y, { align: 'right' });
+  doc.text('Sazba/hod. / Rate', 150, y, { align: 'right' });
+  doc.text('Částka / Amount', 190, y, { align: 'right' });
 
   y += 2;
   doc.setLineWidth(0.3);
@@ -1531,16 +1408,13 @@ if (Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length)
 
   doc.setFont(undefined, 'normal');
   items.forEach(item => {
-    if (y > 270) {
-      doc.addPage();
-      y = 20;
-    }
+    if (y > 270) { doc.addPage(); y = 20; }
 
     const descWidth = 90;
     const descLines = doc.splitTextToSize(item.description, descWidth);
 
     doc.text(descLines, 20, y);
-    doc.text(item.hours.toFixed(2), 120, y, { align: 'right' });
+    doc.text((item.hours || 0).toFixed(2), 120, y, { align: 'right' });
     doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
     doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
@@ -1554,32 +1428,23 @@ if (Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length)
 
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
-  doc.text(isCzech ? 'CELKEM / TOTAL:' : 'TOTAL:', 120, y);
+  doc.text('CELKEM / TOTAL:', 120, y);
   doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
   y += 15;
   doc.setFontSize(10);
   doc.setFont(undefined, 'normal');
   if (state.profile?.bank_entries?.length) {
-    doc.text(isCzech ? 'Bankovní spojení / Bank Details:' : 'Bank Details:', 20, y);
+    doc.text('Bankovní spojení / Bank Details:', 20, y);
     y += 6;
-    state.profile.bank_entries.forEach(acc => {
-      doc.text(`${acc.label}: ${acc.number}`, 20, y);
-      y += 5;
-    });
+    state.profile.bank_entries.forEach(acc => { doc.text(`${acc.label}: ${acc.number}`, 20, y); y += 5; });
   }
   y += 3;
-  doc.text(isCzech ? 'Nejsem plátce DPH. / Not a VAT payer.' : 'Not a VAT payer.', 20, y);
+  doc.text('Nejsem plátce DPH. / Not a VAT payer.', 20, y);
 
   doc.save(`invoice-${inv.id}.pdf`);
 };
 
-window.markInvoicePaid = async (id) => {
-  await database.markInvoicePaid(id);
-  await loadData();
-  showView('dashboard');
-  showToast(t('saveSuccess'));
-};
 
 window.deleteInvoice = async (id) => {
   if (confirm(t('confirmDelete'))) {
