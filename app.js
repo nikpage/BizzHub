@@ -18,22 +18,21 @@ async function init() {
   // Wait for Netlify Identity to be ready
   return new Promise((resolve) => {
     if (window.netlifyIdentity) {
+      window.netlifyIdentity.init();
       window.netlifyIdentity.on('init', async (user) => {
         if (!user) {
           // Not logged in, redirect to landing page
           window.location.href = '/index.html';
           return;
-
-  window.netlifyIdentity.init();}
+        }
 
         state.currentUser = user;
         database.setUser(user.id);
-        database.setUser(user.id);
-console.log('APP USER ID:', user.id);
+        console.log('APP USER ID:', user.id);
 
         const savedLang = localStorage.getItem('lang') || 'en';
         document.getElementById('langSelect').value = savedLang;
-setLanguage(savedLang);
+        setLanguage(savedLang);
 
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.body.dataset.theme = savedTheme;
