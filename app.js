@@ -1043,73 +1043,196 @@ window.viewInvoice = async (id) => {
 
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = JSON.parse(inv.items || '[]');
+  const lang = localStorage.getItem('lang') || 'en';
+  const isCzech = lang === 'cs' || client?.czech_invoice;
 
   const win = window.open('', '_blank');
   win.document.write(`
     <!DOCTYPE html>
     <html>
     <head>
-      <title>${t('invoice')} #${inv.id}</title>
+      <meta charset="UTF-8">
+      <title>${isCzech ? 'FAKTURA' : 'INVOICE'} #${inv.id}</title>
       <style>
-        body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-        h1 { color: #333; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background: #f5f5f5; font-weight: bold; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
-        .total { font-size: 1.5em; font-weight: bold; text-align: right; margin-top: 20px; }
-        .info-section { margin: 20px 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: Arial, sans-serif;
+          padding: 40px;
+          max-width: 800px;
+          margin: 0 auto;
+          color: #000;
+          line-height: 1.5;
+        }
+        .invoice-title {
+          font-size: 32px;
+          font-weight: bold;
+          margin-bottom: 20px;
+        }
+        .header-info {
+          text-align: right;
+          margin-bottom: 30px;
+          font-size: 14px;
+        }
+        .header-info div {
+          margin-bottom: 4px;
+        }
+        .header-info strong {
+          display: inline-block;
+          min-width: 180px;
+        }
+        .separator {
+          border-top: 2px solid #000;
+          margin: 30px 0;
+        }
+        .parties {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 40px;
+        }
+        .party {
+          width: 48%;
+        }
+        .party-title {
+          font-weight: bold;
+          font-size: 16px;
+          margin-bottom: 10px;
+        }
+        .party-content {
+          font-size: 14px;
+          line-height: 1.6;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 30px 0;
+        }
+        th {
+          background: #f5f5f5;
+          padding: 12px 8px;
+          text-align: left;
+          font-weight: bold;
+          border-bottom: 2px solid #000;
+          font-size: 14px;
+        }
+        td {
+          padding: 10px 8px;
+          border-bottom: 1px solid #ddd;
+          font-size: 14px;
+        }
+        .text-right {
+          text-align: right;
+        }
+        .totals {
+          margin-top: 30px;
+          text-align: right;
+        }
+        .total-row {
+          font-size: 18px;
+          font-weight: bold;
+          margin-top: 10px;
+          padding-top: 10px;
+          border-top: 2px solid #000;
+        }
+        .bank-info {
+          margin-top: 40px;
+          font-size: 14px;
+        }
+        .bank-info strong {
+          display: inline-block;
+          min-width: 150px;
+        }
+        @media print {
+          body { padding: 20px; }
+          .no-print { display: none; }
+        }
+        .btn {
+          padding: 12px 24px;
+          background: #6366f1;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          font-size: 16px;
+          margin-top: 30px;
+        }
+        .btn:hover {
+          background: #4f46e5;
+        }
       </style>
     </head>
     <body>
-      <div class="header">
-        <div>
-          <h1>${t('invoice')}</h1>
-          <p>#${inv.id}</p>
-        </div>
-        <div>
-          <p><strong>${t('date')}:</strong> ${formatDate(inv.created_at)}</p>
-          <p><strong>${t('dueDate')}:</strong> ${formatDate(inv.due_date)}</p>
-        </div>
+      <h1 class="invoice-title">${isCzech ? 'FAKTURA' : 'INVOICE'}</h1>
+
+      <div class="header-info">
+        <div><strong>${isCzech ? 'Invoice #:' : 'Invoice #:'}</strong> ${inv.id}</div>
+        <div><strong>${isCzech ? 'Datum vystavení / Issue date:' : 'Issue date:'}</strong> ${formatDate(inv.created_at)}</div>
+        <div><strong>${isCzech ? 'Datum splatnosti / Due date:' : 'Due date:'}</strong> ${formatDate(inv.due_date)}</div>
+        <div><strong>${isCzech ? 'Forma úhrady / Payment Method:' : 'Payment Method:'}</strong> ${isCzech ? 'Bankovním převodem' : 'Bank transfer'}</div>
       </div>
 
-      <div class="info-section">
-        <h3>${t('customer')}</h3>
-        <p><strong>${client?.name || '-'}</strong></p>
-        <p>${client?.address || ''}</p>
-        <p>${client?.invoice_email || ''}</p>
+      <div class="separator"></div>
+
+      <div class="parties">
+        <div class="party">
+          <div class="party-title">${isCzech ? 'Dodavatel' : 'Supplier'}</div>
+          <div class="party-content">
+            <strong>${state.profile?.name || 'Your Business'}</strong><br>
+            ${state.profile?.address || ''}<br>
+            ${state.profile?.email || ''}<br>
+            ${state.profile?.id_numbers?.map(id => `${id.label}: ${id.number}`).join('<br>') || ''}
+          </div>
+        </div>
+
+        <div class="party">
+          <div class="party-title">${isCzech ? 'Odběratel' : 'Customer'}</div>
+          <div class="party-content">
+            <strong>${client?.name || '-'}</strong><br>
+            ${client?.address || ''}<br>
+            ${client?.invoice_email || ''}<br>
+            ${client?.id_numbers?.map(id => `${id.label}: ${id.number}`).join('<br>') || ''}
+          </div>
+        </div>
       </div>
 
       <table>
         <thead>
           <tr>
-            <th>${t('date')}</th>
-            <th>${t('description')}</th>
-            <th>${t('hours')}</th>
-            <th>${t('rate')}</th>
-            <th>${t('amount')}</th>
+            <th>${isCzech ? 'Položka / Description' : 'Description'}</th>
+            <th class="text-right">${isCzech ? 'Počet hodin / Hours' : 'Hours'}</th>
+            <th class="text-right">${isCzech ? 'Sazba/hod. / Rate' : 'Rate'}</th>
+            <th class="text-right">${isCzech ? 'Částka / Amount' : 'Amount'}</th>
           </tr>
         </thead>
         <tbody>
           ${items.map(item => `
             <tr>
-              <td>${formatDate(item.date)}</td>
               <td>${item.description}</td>
-              <td>${item.hours}</td>
-              <td>${item.rate?.toFixed(2)}</td>
-              <td>${(item.hours * item.rate).toFixed(2)}</td>
+              <td class="text-right">${item.hours.toFixed(2)}</td>
+              <td class="text-right">${item.rate?.toFixed(2)} ${client?.currency || 'USD'}</td>
+              <td class="text-right">${(item.hours * item.rate).toFixed(2)} ${client?.currency || 'USD'}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
 
-      <div class="total">
-        <p><strong>${t('total')}:</strong> ${inv.total?.toFixed(2)}</p>
+      <div class="totals">
+        <div class="total-row">
+          <strong>${isCzech ? 'CELKEM K ÚHRADĚ / TOTAL DUE:' : 'TOTAL DUE:'}</strong>
+          ${inv.total?.toFixed(2)} ${client?.currency || 'USD'}
+        </div>
       </div>
 
-      <div style="margin-top: 40px;">
-        <button onclick="window.print()" style="padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 5px; cursor: pointer;">
-          Print / Save as PDF
+      <div class="bank-info">
+        <div><strong>${isCzech ? 'Bankovní spojení / Bank Details:' : 'Bank Details:'}</strong></div>
+        ${state.profile?.bank_accounts?.map(acc => `
+          <div>${acc.label}: ${acc.number}</div>
+        `).join('') || ''}
+        <div style="margin-top: 10px;">${isCzech ? 'Nejsem plátce DPH. / Not a VAT payer.' : 'Not a VAT payer.'}</div>
+      </div>
+
+      <div class="no-print">
+        <button class="btn" onclick="window.print()">
+          ${isCzech ? 'Tisknout / Uložit jako PDF' : 'Print / Save as PDF'}
         </button>
       </div>
     </body>
@@ -1124,27 +1247,94 @@ window.downloadInvoice = async (id) => {
 
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = JSON.parse(inv.items || '[]');
+  const lang = localStorage.getItem('lang') || 'en';
+  const isCzech = lang === 'cs' || client?.czech_invoice;
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  doc.setFontSize(20);
-  doc.text(t('invoice'), 20, 20);
+  doc.setFontSize(24);
+  doc.text(isCzech ? 'FAKTURA' : 'INVOICE', 20, 20);
+
+  doc.setFontSize(11);
+  doc.text(`Invoice #: ${inv.id}`, 20, 35);
+  doc.text(`${isCzech ? 'Datum vystavení / ' : ''}Issue date: ${formatDate(inv.created_at)}`, 20, 42);
+  doc.text(`${isCzech ? 'Datum splatnosti / ' : ''}Due date: ${formatDate(inv.due_date)}`, 20, 49);
+  doc.text(`${isCzech ? 'Forma úhrady / ' : ''}Payment: ${isCzech ? 'Bankovním převodem' : 'Bank transfer'}`, 20, 56);
+
+  doc.setLineWidth(0.5);
+  doc.line(20, 62, 190, 62);
+
   doc.setFontSize(12);
-  doc.text(`#${inv.id}`, 20, 30);
+  doc.setFont(undefined, 'bold');
+  doc.text(isCzech ? 'Dodavatel' : 'Supplier', 20, 72);
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(10);
+  let y = 78;
+  doc.text(state.profile?.name || 'Your Business', 20, y);
+  if (state.profile?.address) { y += 5; doc.text(state.profile.address, 20, y); }
+  if (state.profile?.email) { y += 5; doc.text(state.profile.email, 20, y); }
 
-  doc.text(`${t('customer')}: ${client?.name || '-'}`, 20, 45);
-  doc.text(`${t('date')}: ${formatDate(inv.created_at)}`, 20, 55);
-  doc.text(`${t('dueDate')}: ${formatDate(inv.due_date)}`, 20, 65);
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.text(isCzech ? 'Odběratel' : 'Customer', 110, 72);
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(10);
+  y = 78;
+  doc.text(client?.name || '-', 110, y);
+  if (client?.address) { y += 5; doc.text(client.address, 110, y); }
+  if (client?.invoice_email) { y += 5; doc.text(client.invoice_email, 110, y); }
 
-  let y = 80;
+  y = Math.max(y, 95) + 10;
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'bold');
+  doc.text(isCzech ? 'Položka / Description' : 'Description', 20, y);
+  doc.text(isCzech ? 'Hod.' : 'Hours', 120, y, { align: 'right' });
+  doc.text(isCzech ? 'Sazba' : 'Rate', 150, y, { align: 'right' });
+  doc.text(isCzech ? 'Částka' : 'Amount', 190, y, { align: 'right' });
+
+  y += 2;
+  doc.setLineWidth(0.3);
+  doc.line(20, y, 190, y);
+  y += 7;
+
+  doc.setFont(undefined, 'normal');
   items.forEach(item => {
-    doc.text(`${formatDate(item.date)} - ${item.description}: ${item.hours}h x ${item.rate} = ${(item.hours * item.rate).toFixed(2)}`, 20, y);
-    y += 10;
+    if (y > 270) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(item.description, 20, y);
+    doc.text(item.hours.toFixed(2), 120, y, { align: 'right' });
+    doc.text(`${item.rate.toFixed(2)} ${client?.currency || 'USD'}`, 150, y, { align: 'right' });
+    doc.text(`${(item.hours * item.rate).toFixed(2)} ${client?.currency || 'USD'}`, 190, y, { align: 'right' });
+    y += 7;
   });
 
-  doc.setFontSize(16);
-  doc.text(`${t('total')}: ${inv.total?.toFixed(2)}`, 20, y + 10);
+  y += 5;
+  doc.setLineWidth(0.5);
+  doc.line(120, y, 190, y);
+  y += 8;
+
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'bold');
+  doc.text(isCzech ? 'CELKEM / TOTAL:' : 'TOTAL:', 120, y);
+  doc.text(`${inv.total?.toFixed(2)} ${client?.currency || 'USD'}`, 190, y, { align: 'right' });
+
+  y += 15;
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  if (state.profile?.bank_accounts?.length) {
+    doc.text(isCzech ? 'Bankovní spojení / Bank Details:' : 'Bank Details:', 20, y);
+    y += 6;
+    state.profile.bank_accounts.forEach(acc => {
+      doc.text(`${acc.label}: ${acc.number}`, 20, y);
+      y += 5;
+    });
+  }
+  y += 3;
+  doc.text(isCzech ? 'Nejsem plátce DPH. / Not a VAT payer.' : 'Not a VAT payer.', 20, y);
 
   doc.save(`invoice-${inv.id}.pdf`);
 };

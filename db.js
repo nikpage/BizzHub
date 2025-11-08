@@ -63,7 +63,7 @@ class Database {
   }
 
   async create(table, record) {
-    return this.request(table, {
+    const data = await this.request(table, {
       method: 'POST',
       body: {
         ...record,
@@ -72,7 +72,11 @@ class Database {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
-    }).then(data => data[0]);
+    });
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error(`Failed to create ${table} record - database returned no data`);
+    }
+    return data[0];
   }
 
   async update(table, id, updates) {
