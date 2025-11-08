@@ -804,8 +804,8 @@ function showJobForm(jobId = null) {
         showToast('Save failed', 'error');
       }
     });
+  }
 
-}
 
 function showTimesheetForm(timesheetId = null) {
   const ts = timesheetId ? state.timesheets.find(t => t.id === timesheetId) : {};
