@@ -13,17 +13,6 @@ const state = {
   profile: null
 };
 
-// Utility Functions
-function formatCurrency(amount) {
-  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
 // Initialize app
 async function init() {
   // Wait for Netlify Identity to be ready
@@ -1421,6 +1410,16 @@ window.deleteForever = async (table, id) => {
 };
 
 // Utility Functions
+function formatCurrency(amount) {
+  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
 function downloadFile(content, filename, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
