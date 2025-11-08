@@ -215,6 +215,20 @@ class Database {
       paid_date: new Date().toISOString(),
     });
   }
+  async deleteAllUserData(userId) {
+    await this.request('invoices?user_id=eq.'  + userId, { method: 'DELETE' });
+    await this.request('timesheets?user_id=eq.'+ userId, { method: 'DELETE' });
+    await this.request('jobs?user_id=eq.'      + userId, { method: 'DELETE' });
+    await this.request('clients?user_id=eq.'   + userId, { method: 'DELETE' });
+    await this.request('business?user_id=eq.'  + userId, { method: 'DELETE' });
+  }
+
+  async deleteAllUserData(userId) {
+    const tables = ['invoices','timesheets','jobs','clients','business'];
+    await Promise.all(
+      tables.map(t => this.request(`${t}?user_id=eq.${userId}`, { method: 'DELETE' }))
+    );
+  }
 
   async getTrash() {
     const [clients, jobs, timesheets, invoices] = await Promise.all([
