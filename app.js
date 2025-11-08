@@ -750,43 +750,61 @@ function showJobForm(jobId = null) {
 
         <div class="form-group">
           <label>${t('rate')}</label>
-          <input type="number" name="rate" value="${job.rate || ''}" step="0.01">
+          <input type="number" name="rate" value="${job.rate || (job.client_id ? (state.clients.find(c => c.id === job.client_id)?.rate || '') : '')}" step="0.01">
         </div>
+
 
         <div class="form-group">
           <label>${t('currency')}</label>
           <select name="currency">
-            <option value="USD" ${job.currency === 'USD' ? 'selected' : ''}>USD</option>
-            <option value="EUR" ${job.currency === 'EUR' ? 'selected' : ''}>EUR</option>
-            <option value="CZK" ${job.currency === 'CZK' ? 'selected' : ''}>CZK</option>
+            ${(() => {
+              const client = job.client_id ? state.clients.find(c => c.id === job.client_id) : null;
+              const cur = job.currency || client?.currency || '';
+              return `
+                <option value="USD" ${cur === 'USD' ? 'selected' : ''}>USD</option>
+                <option value="EUR" ${cur === 'EUR' ? 'selected' : ''}>EUR</option>
+                <option value="CZK" ${cur === 'CZK' ? 'selected' : ''}>CZK</option>
+                <option value="GBP" ${cur === 'GBP' ? 'selected' : ''}>GBP</option>
+              `;
+            })()}
           </select>
         </div>
+
       </div>
 
       <input type="hidden" name="id" value="${job.id || ''}">
     </form>
-  `, async () => {
-    const form = document.getElementById('jobForm');
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData);
+    `, async () => {
+      const form = document.getElementById('jobForm');
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData);
 
-    if (!data.id) delete data.id;
-    if (data.client_id === '') delete data.client_id;
-    if (data.rate === '') delete data.rate;
-    if (data.hours === '') delete data.hours;
-    if (data.start_date === '') delete data.start_date;
-    if (data.end_date === '') delete data.end_date;
+      if (data.client_id) {
+        const client = state.clients.find(c => c.id === data.client_id);
+        if (client) {
+          if (!data.rate || data.rate === '') data.rate = client.rate ?? '';
+          if (!data.currency || data.currency === '') data.currency = client.currency ?? '';
+        }
+      }
 
-    try {
-      await database.saveJob(data);
-      state.jobs = await database.getJobs();
-      showView('jobs');
-      showToast(t('saveSuccess'));
-    } catch (err) {
-      console.error('Save failed:', err);
-      showToast('Save failed', 'error');
-    }
-  });
+      if (!data.id) delete data.id;
+      if (data.client_id === '') delete data.client_id;
+      if (data.rate === '') delete data.rate;
+      if (data.hours === '') delete data.hours;
+      if (data.start_date === '') delete data.start_date;
+      if (data.end_date === '') delete data.end_date;
+
+      try {
+        await database.saveJob(data);
+        state.jobs = await database.getJobs();
+        showView('jobs');
+        showToast(t('saveSuccess'));
+      } catch (err) {
+        console.error('Save failed:', err);
+        showToast('Save failed', 'error');
+      }
+    });
+
 }
 
 function showTimesheetForm(timesheetId = null) {
