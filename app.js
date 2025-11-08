@@ -509,6 +509,24 @@ function renderProfile(container) {
             <input type="email" name="email" value="${profile.email || ''}">
           </div>
 
+          <div class="form-group full-width">
+            <h3 class="mb-2">${t('bankAccounts')}</h3>
+            ${[1,2,3].map(i => {
+              const bank = profile.bank_accounts?.[i-1] || {};
+              return `
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>${t('bankLabel')} ${i}</label>
+                  <input type="text" name="bank_label_${i}" value="${bank.label || ''}">
+                </div>
+                <div class="form-group">
+                  <label>${t('bankNumber')} ${i}</label>
+                  <input type="text" name="bank_number_${i}" value="${bank.number || ''}">
+                </div>
+              </div>
+              `;
+            }).join('')}
+          </div>
 
           <div class="form-group full-width">
             <h3 class="mb-2">${t('idNumbers')}</h3>
@@ -878,6 +896,28 @@ async function saveProfile(e) {
   const formData = new FormData(form);
   const data = Object.fromEntries(formData);
 
+  const bank_accounts = [];
+  for (let i = 1; i <= 3; i++) {
+    const label = data[`bank_label_${i}`];
+    const number = data[`bank_number_${i}`];
+    if (label || number) {
+      bank_accounts.push({ label: label || '', number: number || '' });
+    }
+    delete data[`bank_label_${i}`];
+    delete data[`bank_number_${i}`];
+  }
+
+  const id_numbers = [];
+  for (let i = 1; i <= 4; i++) {
+    const label = data[`id_label_${i}`];
+    const number = data[`id_number_${i}`];
+    if (label || number) {
+      id_numbers.push({ label: label || '', number: number || '' });
+    }
+  }
+
+  data.bank_accounts = bank_accounts;
+  data.id_numbers = id_numbers;
 
   await database.saveProfile(data);
   state.profile = data;
