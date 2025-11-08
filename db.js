@@ -80,7 +80,7 @@ class Database {
   }
 
   async update(table, id, updates) {
-    return this.request(`${table}?id=eq.${id}`, {
+    return this.request(`${table}?id=eq.${id}&user_id=eq.${this.userId}`, {
       method: 'PATCH',
       body: {
         ...updates,
@@ -134,7 +134,9 @@ class Database {
     } else {
       saved = await this.create('clients', client);
     }
-    this.userId && (saved.user_id = this.userId);
+    if (saved && this.userId) {
+      saved.user_id = this.userId;
+    }
     return saved;
   }
 
