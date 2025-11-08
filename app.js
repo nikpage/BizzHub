@@ -18,13 +18,13 @@ async function init() {
   // Wait for Netlify Identity to be ready
   return new Promise((resolve) => {
     if (window.netlifyIdentity) {
+      window.netlifyIdentity.init();
       window.netlifyIdentity.on('init', async (user) => {
         if (!user) {
           // Not logged in, redirect to landing page
           window.location.href = '/index.html';
           return;
-
-  window.netlifyIdentity.init();}
+        }
 
         state.currentUser = user;
         database.setUser(user.id);
@@ -1023,7 +1023,12 @@ window.viewInvoice = async (id) => {
   if (!inv) return;
 
   const client = state.clients.find(c => c.id === inv.client_id);
-  const items = JSON.parse(inv.items || '[]');
+  let items = [];
+  try {
+    items = JSON.parse(inv.items || '[]');
+  } catch (e) {
+    console.error('Failed to parse invoice items:', e);
+  }
 
   const win = window.open('', '_blank');
   win.document.write(`
@@ -1104,7 +1109,12 @@ window.downloadInvoice = async (id) => {
   if (!inv) return;
 
   const client = state.clients.find(c => c.id === inv.client_id);
-  const items = JSON.parse(inv.items || '[]');
+  let items = [];
+  try {
+    items = JSON.parse(inv.items || '[]');
+  } catch (e) {
+    console.error('Failed to parse invoice items:', e);
+  }
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
