@@ -980,6 +980,10 @@ async function restoreData(file) {
     await Promise.all(b.invoices.map(i => database.saveInvoice({...i, user_id: u})));
     await loadData(); showView('dashboard'); showToast('Restored');
   };
+}  // ← this brace was missing
+
+// Global Window Functions for onclick handlers
+window.showView = showView;
 
 // Global Window Functions for onclick handlers
 window.showView = showView;
