@@ -15,9 +15,15 @@ class Database {
     let res;
     try {
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : process.env.URL || '';
+      const headers = { 'Content-Type': 'application/json' };
+
+      if (options.method === 'POST') {
+        headers['Prefer'] = 'return=representation';
+      }
+
       res = await fetch(`${baseUrl}/.netlify/functions/db-proxy`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({
           method: options.method || 'GET',
           endpoint: endpoint,
