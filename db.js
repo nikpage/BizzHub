@@ -47,7 +47,7 @@ class Database {
   }
 
   async getAll(table) {
-    const softDeleteFilter = ['clients','jobs','timesheets','business'].includes(table) ? '&deleted=eq.false' : '';
+    const softDeleteFilter = ['clients','jobs','timesheets'].includes(table) ? '&deleted=eq.false' : '';
     return this.request(`${table}?user_id=eq.${this.userId}${softDeleteFilter}&order=created_at.desc&select=*`);
   }
 
@@ -64,7 +64,7 @@ class Database {
       updated_at: new Date().toISOString(),
     };
     // Add deleted field only for tables that support soft deletes
-    if (['clients','jobs','timesheets','business'].includes(table)) {
+    if (['clients','jobs','timesheets'].includes(table)) {
       body.deleted = false;
     }
     return this.request(table, {
