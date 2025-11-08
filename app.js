@@ -1072,7 +1072,7 @@ async function generateInvoice() {
 
   const invoice = {
     client_id: clientId,
-        items: JSON.stringify(timesheets.map(ts => ({
+    items: JSON.stringify(timesheets.map(ts => ({
       date: ts.date,
       description: ts.notes || 'Work',
       hours: ts.hours,
@@ -1082,8 +1082,11 @@ async function generateInvoice() {
     tax: 0,
     total: total,
     status: 'unpaid',
-    due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    currency: client.currency || 'CZK',
+    meta: JSON.stringify({ month })
   };
+
 
   await database.saveInvoice(invoice);
   await loadData();
