@@ -966,7 +966,8 @@ async function restoreData(file) {
           await database.saveTimesheet(ts);
         }
         for (const inv of backup.invoices) {
-          await database.saveInvoice(inv);
+          const { deleted, ...invData } = inv;
+          await database.saveInvoice(invData);
         }
         if (backup.profile) {
           await database.saveProfile(backup.profile);

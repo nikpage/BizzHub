@@ -183,10 +183,11 @@ class Database {
   }
 
   async saveInvoice(invoice) {
-    invoice.user_id = this.userId;
-    return invoice.id
-      ? this.update('invoices', invoice.id, invoice)
-      : this.create('invoices', invoice);
+    const { deleted, ...invData } = invoice;
+    invData.user_id = this.userId;
+    return invData.id
+      ? this.update('invoices', invData.id, invData)
+      : this.create('invoices', invData);
   }
 
   async deleteInvoice(id) {
