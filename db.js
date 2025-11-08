@@ -67,6 +67,7 @@ class Database {
     if (['clients','jobs','timesheets'].includes(table)) {
       body.deleted = false;
     }
+    console.log(`[DB] create(${table}) - body keys:`, Object.keys(body));
     return this.request(table, {
       method: 'POST',
       body
@@ -185,6 +186,7 @@ class Database {
   async saveInvoice(invoice) {
     const { deleted, ...invData } = invoice;
     invData.user_id = this.userId;
+    console.log('[DB] saveInvoice - sending data:', invData);
     return invData.id
       ? this.update('invoices', invData.id, invData)
       : this.create('invoices', invData);
