@@ -13,6 +13,17 @@ const state = {
   profile: null
 };
 
+// Utility Functions
+function formatCurrency(amount) {
+  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
 // Initialize app
 async function init() {
   // Wait for Netlify Identity to be ready
@@ -512,7 +523,7 @@ function renderProfile(container) {
           <div class="form-group full-width">
             <h3 class="mb-2">${t('bankAccounts')}</h3>
             ${[1,2,3].map(i => {
-              const bank = profile.bank_accounts?.[i-1] || {};
+              const bank = profile.bank_entries?.[i-1] || {};
               return `
               <div class="form-grid">
                 <div class="form-group">
@@ -896,28 +907,28 @@ async function saveProfile(e) {
   const formData = new FormData(form);
   const data = Object.fromEntries(formData);
 
-  const bank_accounts = [];
+  const bank_entries = [];
   for (let i = 1; i <= 3; i++) {
     const label = data[`bank_label_${i}`];
     const number = data[`bank_number_${i}`];
     if (label || number) {
-      bank_accounts.push({ label: label || '', number: number || '' });
+      bank_entries.push({ label: label || '', number: number || '' });
     }
     delete data[`bank_label_${i}`];
     delete data[`bank_number_${i}`];
   }
 
-  const id_numbers = [];
+  const id_entries = [];
   for (let i = 1; i <= 4; i++) {
     const label = data[`id_label_${i}`];
     const number = data[`id_number_${i}`];
     if (label || number) {
-      id_numbers.push({ label: label || '', number: number || '' });
+      id_entries.push({ label: label || '', number: number || '' });
     }
   }
 
-  data.bank_accounts = bank_accounts;
-  data.id_numbers = id_numbers;
+  data.bank_entries = bank_entries;
+  data.id_entries = id_entries;
 
   await database.saveProfile(data);
   state.profile = data;
@@ -1259,7 +1270,7 @@ window.viewInvoice = async (id) => {
 
       <div class="footer-info">
         <p><strong>${isCzech ? 'Bankovní spojení / Bank Details:' : 'Bank Details:'}</strong></p>
-        ${state.profile?.bank_accounts?.map(acc => `<p>Bank: ${acc.number}</p>`).join('') || '<p>Not specified</p>'}
+        ${state.profile?.bank_entries?.map(acc => `<p>Bank: ${acc.number}</p>`).join('') || '<p>Not specified</p>'}
         <p style="margin-top: 15px;">${isCzech ? 'Nejsem plátce DPH. / Not a VAT payer.' : 'Not a VAT payer.'}</p>
       </div>
 
@@ -1363,10 +1374,10 @@ window.downloadInvoice = async (id) => {
   y += 15;
   doc.setFontSize(10);
   doc.setFont(undefined, 'normal');
-  if (state.profile?.bank_accounts?.length) {
+  if (state.profile?.bank_entries?.length) {
     doc.text(isCzech ? 'Bankovní spojení / Bank Details:' : 'Bank Details:', 20, y);
     y += 6;
-    state.profile.bank_accounts.forEach(acc => {
+    state.profile.bank_entries.forEach(acc => {
       doc.text(`${acc.label}: ${acc.number}`, 20, y);
       y += 5;
     });
@@ -1410,16 +1421,6 @@ window.deleteForever = async (table, id) => {
 };
 
 // Utility Functions
-function formatCurrency(amount) {
-  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
 function downloadFile(content, filename, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
