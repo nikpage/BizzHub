@@ -180,9 +180,13 @@ class Database {
 
   async saveInvoice(invoice) {
     invoice.user_id = this.userId;
-    return invoice.id
-      ? this.update('invoices', invoice.id, invoice)
-      : this.create('invoices', invoice);
+    if (invoice.id) {
+      const existing = await this.getInvoice(invoice.id);
+      if (existing) {
+        return this.update('invoices', invoice.id, invoice);
+      }
+    }
+    return this.create('invoices', invoice);
   }
 
   async deleteInvoice(id) {
