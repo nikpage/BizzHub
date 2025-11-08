@@ -841,12 +841,12 @@ async function createInvoiceFromJob(jobId) {
     id: invoiceId,
     client_id: job.client_id,
     job_id: jobId,
-    items: [{ description: dateRange, hours: hours, rate: rate }],
+    items: JSON.stringify([{ description: dateRange, hours: hours, rate: rate }]),
     date_issued: new Date().toISOString(),
     due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
     total: total,
     status: 'unpaid',
-    meta: { description: description, currency: currency }
+    meta: JSON.stringify({ description: description, currency: currency })
   };
 
   try {
