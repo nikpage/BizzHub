@@ -57,15 +57,19 @@ class Database {
   }
 
   async create(table, record) {
+    const body = {
+      ...record,
+      user_id: this.userId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    // Add deleted field only for tables that support soft deletes
+    if (['clients','jobs','timesheets','business'].includes(table)) {
+      body.deleted = false;
+    }
     return this.request(table, {
       method: 'POST',
-      body: {
-        ...record,
-        user_id: this.userId,
-         deleted: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
+      body
     }).then(data => data[0]);
   }
 
