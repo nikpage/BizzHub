@@ -227,7 +227,7 @@ function renderDashboard(container) {
           ` : state.invoices.map((inv, i) => {
             const client = state.clients.find(c => c.id === inv.client_id);
             const currency = client?.currency || 'CZK';
-            const items = JSON.parse(inv.items || '[]');
+            const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
             const description = items.length > 0 ? items[0].description : '';
             const truncatedDesc = description.length > 30 ? description.substring(0, 30) + '...' : description;
             return `
