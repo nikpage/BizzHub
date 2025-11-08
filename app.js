@@ -176,7 +176,6 @@ function renderDashboard(container) {
     inv.status === 'unpaid' && new Date(inv.due_date) < new Date()
   ).reduce((sum, inv) => sum + (inv.total || 0), 0);
 
-  // Get currency from profile or first client, default to CZK
   const defaultCurrency = state.profile?.currency || state.clients[0]?.currency || 'CZK';
 
   container.innerHTML = `
@@ -1361,7 +1360,7 @@ window.deleteForever = async (table, id) => {
 };
 
 // Utility Functions
-function formatCurrency(amount, currency = 'CZK') {
+function formatCurrency(amount) {
   return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
