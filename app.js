@@ -496,7 +496,7 @@ function renderProfile(container) {
 
           <div class="form-group full-width">
             <label>${t('businessEmail')}</label>
-            <input type="email" name="email" value="${profile.email || ''}">
+            <input type="email" name="from_email" value="${profile.from_email || ''}">
           </div>
 
 
