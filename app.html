@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizzHub - Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+<script>
+  if (window.netlifyIdentity) {
+    window.netlifyIdentity.init();
+  }
+</script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <h1>🚀 BizzHub</h1>
+    </div>
+    <div class="header-right">
+      <select id="langSelect" class="header-select">
+        <option value="en">EN</option>
+        <option value="cs">CS</option>
+      </select>
+
+      <button id="themeToggle" class="btn-icon" title="Toggle theme">🌓</button>
+
+      <span id="userEmail" class="user-email"></span>
+
+      <div class="dropdown">
+        <button class="btn-secondary dropdown-toggle">⚙️ Settings</button>
+        <div class="dropdown-menu">
+          <button id="profileBtn" class="dropdown-item">My Profile</button>
+          <button id="backupBtn" class="dropdown-item">Backup Data</button>
+          <button id="restoreBtn" class="dropdown-item">Restore Data</button>
+        </div>
+      </div>
+
+      <button id="logoutBtn" class="btn-danger">Logout</button>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="app-nav">
+    <button class="nav-tab active" data-view="dashboard">📊 Dashboard</button>
+    <button class="nav-tab" data-view="clients">👥 Clients</button>
+    <button class="nav-tab" data-view="jobs">💼 Jobs</button>
+    <button class="nav-tab" data-view="worklogs">⏱️ Work Logs</button>
+    <button class="nav-tab" data-view="trash">🗑️ Trash</button>
+  </nav>
+
+  <!-- Main View Container -->
+  <main id="mainView" class="main-view">
+    <!-- Dynamic content loads here -->
+  </main>
+
+  <!-- Toast notifications -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Modal container -->
+  <div id="modalContainer"></div>
+
+      <script type="module" src="app.js"></script>
+</body>
+</html>

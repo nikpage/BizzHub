@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BizzHub - Business Manager for Freelancers</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body class="landing-page">
+  <div class="landing-container">
+    <div class="landing-hero">
+      <h1>🚀 BizzHub</h1>
+      <p class="tagline">Simple Business Management for Freelancers</p>
+      <p class="subtitle">Track clients, log work, generate invoices - all in one place</p>
+      <button id="loginBtn" class="btn-primary">Get Started</button>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <span class="icon">👥</span>
+        <h3>Client Management</h3>
+        <p>Store client info, rates, and banking details</p>
+      </div>
+      <div class="feature">
+        <span class="icon">⏱️</span>
+        <h3>Time Tracking</h3>
+        <p>Log hours and generate monthly invoices</p>
+      </div>
+      <div class="feature">
+        <span class="icon">📊</span>
+        <h3>Dashboard</h3>
+        <p>See your earnings and outstanding payments</p>
+      </div>
+      <div class="feature">
+        <span class="icon">🌍</span>
+        <h3>Bilingual</h3>
+        <p>Full support for English and Czech</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const netlifyIdentity = window.netlifyIdentity;
+
+    // Initialize
+    netlifyIdentity.on('init', user => {
+      if (user) {
+        window.location.href = '/app.html';
+      }
+    });
+
+    // Login button
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      netlifyIdentity.open('login');
+    });
+
+    // Redirect after login
+    netlifyIdentity.on('login', () => {
+      window.location.href = '/app.html';
+    });
+  </script>
+</body>
+</html>
