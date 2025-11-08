@@ -211,8 +211,7 @@ class Database {
 
   async markInvoicePaid(id) {
     return this.update('invoices', id, {
-      status: 'paid',
-      paid_date: new Date().toISOString(),
+      status: 'paid'
     });
   }
   async deleteAllUserData(userId) {
