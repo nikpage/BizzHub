@@ -1072,8 +1072,7 @@ async function generateInvoice() {
 
   const invoice = {
     client_id: clientId,
-    description: `Work for ${month}`,
-    items: JSON.stringify(timesheets.map(ts => ({
+        items: JSON.stringify(timesheets.map(ts => ({
       date: ts.date,
       description: ts.notes || 'Work',
       hours: ts.hours,
