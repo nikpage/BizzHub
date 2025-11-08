@@ -818,7 +818,27 @@ async function createInvoiceFromJob(jobId) {
     dateRange = formatDate(job.start_date);
   }
 
+  // Generate invoice ID in format YYMMDD-II
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `${yy}${mm}${dd}`;
+
+  // Find highest increment for today
+  const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
+  let nextIncrement = 1;
+  if (todayInvoices.length > 0) {
+    const increments = todayInvoices.map(inv => {
+      const parts = inv.id.split('-');
+      return parts.length === 2 ? parseInt(parts[1]) : 0;
+    });
+    nextIncrement = Math.max(...increments) + 1;
+  }
+  const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
+
   const invoiceData = {
+    id: invoiceId,
     client_id: job.client_id,
     job_id: jobId,
     items: [{ description: dateRange, hours: hours, rate: rate }],
