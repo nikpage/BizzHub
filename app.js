@@ -606,6 +606,24 @@ function showClientForm(clientId = null) {
   const client = clientId ? state.clients.find(c => c.id === clientId) : {};
 
   showModal(clientId ? t('editClient') : t('addClient'), `
+    setTimeout(() => {
+      const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
+      const rateInput = document.querySelector('#jobForm input[name="rate"]');
+      const currencySelect = document.querySelector('#jobForm select[name="currency"]');
+
+      if (clientSelect && rateInput && currencySelect) {
+        clientSelect.addEventListener('change', () => {
+          const client = state.clients.find(c => c.id === clientSelect.value);
+          if (client) {
+            rateInput.value = client.rate || '';
+            currencySelect.value = client.currency || 'CZK';
+          }
+        });
+      }
+    }, 0);
+
+
+
     <form id="clientForm">
       <div class="form-grid">
         <div class="form-group">
