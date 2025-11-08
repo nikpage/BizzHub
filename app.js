@@ -970,41 +970,16 @@ async function restoreData(file) {
 
   const reader = new FileReader();
   reader.onload = async (e) => {
-          await database.deleteAllUserData(state.currentUser.id);
-    try {
-      const backup = JSON.parse(e.target.result);
-
-      if (!confirm('This will completely REPLACE all your current data. Continue?')) return;
-
-      const userId = state.currentUser.id;
-
-      // 1. Nuke existing user data ------------------------------------------
-      await database.deleteAllUserData(userId);   // see db.js helper below
-
-      // 2. Insert backup ------------------------------------------------------
-      const promises = [
-        ...backup.clients.map(c => database.saveClient({ ...c, user_id: userId })),
-        ...backup.jobs.map(j => database.saveJob({ ...j, user_id: userId })),
-        ...backup.timesheets.map(t => database.saveTimesheet({ ...t, user_id: userId })),
-        ...backup.invoices.map(i => database.saveInvoice({ ...i, user_id: userId })),
-      ];
-      if (backup.profile) {
-        promises.push(database.saveProfile({ ...backup.profile, user_id: userId }));
-      }
-
-      await Promise.all(promises);
-
-      // 3. Refresh state and UI ----------------------------------------------
-      await loadData();
-      showView('dashboard');
-      showToast('Data restored successfully');
-    } catch (err) {
-      console.error(err);
-      showToast('Restore failed', 'error');
-    }
+    const b = JSON.parse(e.target.result);
+    if (!confirm('Replace everything?')) return;
+    const u = state.currentUser.id;
+    await database.saveProfile({...b.profile, user_id: u});
+    await Promise.all(b.clients.map(c => database.saveClient({...c, user_id: u})));
+    await Promise.all(b.jobs.map(j => database.saveJob({...j, user_id: u})));
+    await Promise.all(b.timesheets.map(t => database.saveTimesheet({...t, user_id: u})));
+    await Promise.all(b.invoices.map(i => database.saveInvoice({...i, user_id: u})));
+    await loadData(); showView('dashboard'); showToast('Restored');
   };
-  reader.readAsText(file);
-}
 
 // Global Window Functions for onclick handlers
 window.showView = showView;
