@@ -224,7 +224,7 @@ function renderDashboard(container) {
           ` : state.invoices.map((inv, i) => `
             <tr>
               <td>${i + 1}</td>
-              <td>${formatDate(inv.created_at)}</td>
+              <td>${formatDate(inv.date_issued)}</td>
               <td>${inv.description || '-'}</td>
               <td>${t('invoice')}</td>
               <td>$${inv.total?.toFixed(2) || '0.00'}</td>
@@ -909,7 +909,7 @@ async function generateInvoice() {
 function exportLedger(format) {
   const data = state.invoices.map((inv, i) => ({
     '#': i + 1,
-    'Date': formatDate(inv.created_at),
+    'Date': formatDate(inv.date_issued),
     'Description': inv.description || '-',
     'Type': 'Invoice',
     'Amount': inv.total?.toFixed(2) || '0.00',
@@ -1054,7 +1054,7 @@ window.viewInvoice = async (id) => {
           <p>#${inv.id}</p>
         </div>
         <div>
-          <p><strong>${t('date')}:</strong> ${formatDate(inv.created_at)}</p>
+          <p><strong>${t('date')}:</strong> ${formatDate(inv.date_issued)}</p>
           <p><strong>${t('dueDate')}:</strong> ${formatDate(inv.due_date)}</p>
         </div>
       </div>
@@ -1125,7 +1125,7 @@ window.downloadInvoice = async (id) => {
   doc.text(`#${inv.id}`, 20, 30);
 
   doc.text(`${t('customer')}: ${client?.name || '-'}`, 20, 45);
-  doc.text(`${t('date')}: ${formatDate(inv.created_at)}`, 20, 55);
+  doc.text(`${t('date')}: ${formatDate(inv.date_issued)}`, 20, 55);
   doc.text(`${t('dueDate')}: ${formatDate(inv.due_date)}`, 20, 65);
 
   let y = 80;
