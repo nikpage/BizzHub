@@ -1109,6 +1109,11 @@ window.viewInvoice = async (id) => {
           font-size: 14px;
           border-bottom: 1px solid #e0e0e0;
         }
+        td:first-child {
+          max-width: 400px;
+          word-wrap: break-word;
+          white-space: normal;
+        }
         td.right { text-align: right; }
         .separator-thin {
           border-bottom: 1px solid #000;
@@ -1293,11 +1298,16 @@ window.downloadInvoice = async (id) => {
       doc.addPage();
       y = 20;
     }
-    doc.text(item.description, 20, y);
+
+    const descWidth = 90;
+    const descLines = doc.splitTextToSize(item.description, descWidth);
+
+    doc.text(descLines, 20, y);
     doc.text(item.hours.toFixed(2), 120, y, { align: 'right' });
     doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
     doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-    y += 7;
+
+    y += Math.max(7, descLines.length * 5);
   });
 
   y += 5;
