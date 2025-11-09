@@ -1370,7 +1370,14 @@ window.downloadInvoice = async (id) => {
   doc.setFontSize(10);
   let y = 78;
   doc.text(state.profile?.name || 'Your Business', 20, y);
-  if (state.profile?.address) { y += 5; doc.text(state.profile.address, 20, y); }
+
+  if (state.profile?.address) {
+    y += 5;
+    const addressLines = doc.splitTextToSize(state.profile.address, 80);
+    doc.text(addressLines, 20, y);
+    y += (addressLines.length * 4);
+  }
+
   const supplierIds = Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length
     ? state.profile.id_entries
     : Array.from({length: 4}, (_, i) => ({
@@ -1430,9 +1437,9 @@ window.downloadInvoice = async (id) => {
   doc.line(120, y, 190, y);
   y += 8;
 
-  doc.setFontSize(14);
+  doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
-  doc.text('CELKEM K ÚHRADĚ / TOTAL DUE:', 120, y);
+  doc.text('CELKEM K ÚHRADĚ / TOTAL DUE:', 20, y);
   doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
   y += 15;
