@@ -950,19 +950,19 @@ async function createInvoiceFromJob(jobId) {
   const descParts = [job.name];
   if (job.description) descParts.push(job.description);
   if (job.address) descParts.push(job.address);
-  let dateRange = '';
-  if (job.start_date && job.end_date) {
-    dateRange = `${formatDate(job.start_date)} - ${formatDate(job.end_date)}`;
-  } else if (job.start_date) {
-    dateRange = formatDate(job.start_date);
-  }
-  if (dateRange) descParts.push(dateRange);
   const description = descParts.join('\n');
 
   const hours = parseFloat(job.hours) || 0;
   const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
   const currency = job.currency || client.currency || 'USD';
   const total = hours * rate;
+
+  let dateRange = '';
+  if (job.start_date && job.end_date) {
+    dateRange = `${formatDate(job.start_date)} - ${formatDate(job.end_date)}`;
+  } else if (job.start_date) {
+    dateRange = formatDate(job.start_date);
+  }
 
   // Generate invoice ID in format YYMMDD-II
   const now = new Date();
@@ -987,17 +987,12 @@ async function createInvoiceFromJob(jobId) {
     id: invoiceId,
     client_id: job.client_id,
     job_id: jobId,
-    items: JSON.stringify([{
-      description: description,
-      hours: hours,
-      rate: rate
-    }]),
-    created_at: new Date().toISOString(),
+    items: JSON.stringify([{ description: dateRange, hours: hours, rate: rate }]),
+    date_issued: new Date().toISOString(),
     due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
     total: total,
     status: 'unpaid',
-    deleted: false,
-    meta: JSON.stringify({ currency: currency })
+    meta: JSON.stringify({ description: description, currency: currency })
   };
 
   try {
@@ -1351,10 +1346,7 @@ window.downloadInvoice = async (id) => {
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true, orientation: 'p', unit: 'mm', format: 'a4' });
-
-  // Set font that supports Czech characters
-  doc.setFont('Helvetica', 'normal');
+  const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true });
 
   // Remove auto header/date metadata entirely
   doc.setProperties({ title: `invoice-${inv.id}` });
