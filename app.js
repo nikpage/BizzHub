@@ -996,6 +996,7 @@ async function createInvoiceFromJob(jobId) {
     due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
     total: total,
     status: 'unpaid',
+    deleted: false,
     meta: JSON.stringify({ currency: currency })
   };
 
