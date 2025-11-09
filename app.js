@@ -1346,7 +1346,10 @@ window.downloadInvoice = async (id) => {
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true });
+
+  // Remove auto header/date metadata entirely
+  doc.setProperties({ title: `invoice-${inv.id}` });
 
   doc.setFontSize(24);
   doc.text('FAKTURA / INVOICE', 20, 20);
@@ -1433,19 +1436,18 @@ window.downloadInvoice = async (id) => {
   doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
   y += 15;
-  doc.setFontSize(10);
-  doc.setFont(undefined, 'normal');
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
   if (state.profile?.bank_entries?.length) {
     doc.text('Bankovní spojení / Bank Details:', 20, y);
     y += 6;
     state.profile.bank_entries.forEach(acc => { doc.text(`${acc.label}: ${acc.number}`, 20, y); y += 5; });
   }
-  y += 3;
+  y += 6;
   doc.text('Nejsem plátce DPH. / Not a VAT payer.', 20, y);
 
   doc.save(`invoice-${inv.id}.pdf`);
 };
-
 
 
 window.deleteInvoice = async (id) => {
