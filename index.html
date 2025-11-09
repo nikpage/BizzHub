@@ -4,201 +4,204 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BizzHub - Business Manager for Freelancers</title>
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="style.css">
   <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
-<body class="landing-page" data-theme="light">
-  <div class="landing-container">
-    <!-- Theme and Language Controls -->
-    <div style="position: fixed; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 100;">
-      <button id="themeToggle" class="btn-secondary" style="padding: 0.5rem 1rem;">🎨 Theme</button>
-      <button id="langToggle" class="btn-secondary" style="padding: 0.5rem 1rem;">🌍 <span id="langLabel">EN</span></button>
-    </div>
+<body data-theme="light">
 
-    <div class="landing-hero">
+  <!-- Header matching app style -->
+  <div class="app-header">
+    <div class="header-left">
       <h1>🚀 BizzHub</h1>
-
-      <!-- English Content -->
-      <div class="lang-content" data-lang="en">
-        <p class="tagline">Simple Business Management for Freelancers</p>
-        <p class="subtitle">Track clients, log work, generate invoices - all in one place</p>
-      </div>
-
-      <!-- Czech Content -->
-      <div class="lang-content" data-lang="cs" style="display: none;">
-        <p class="tagline">Jednoduchá správa podnikání pro freelancery</p>
-        <p class="subtitle">Sledujte klienty, zaznamenávejte práci, generujte faktury - vše na jednom místě</p>
-      </div>
-
+    </div>
+    <div class="header-right">
+      <button id="themeToggle" class="btn-secondary">🎨 Theme</button>
+      <select id="langSelect" class="header-select">
+        <option value="en">🌍 EN</option>
+        <option value="cs">🌍 CS</option>
+      </select>
       <button id="loginBtn" class="btn-primary">
-        <span class="lang-content" data-lang="en">Get Started</span>
-        <span class="lang-content" data-lang="cs" style="display: none;">Začít</span>
+        <span class="lang-en">Get Started</span>
+        <span class="lang-cs" style="display: none;">Začít</span>
       </button>
     </div>
+  </div>
 
-    <div class="features">
-      <!-- Client Management -->
-      <div class="feature">
-        <span class="icon">👥</span>
-        <div class="lang-content" data-lang="en">
-          <h3>Client Management</h3>
-          <p>Store client info, rates, and banking details securely</p>
+  <!-- Main Content -->
+  <div class="main-view">
+
+    <!-- Hero Section -->
+    <div style="text-align: center; margin-bottom: 3rem;">
+      <div class="lang-en">
+        <h2 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text);">Simple Business Management for Freelancers</h2>
+        <p style="font-size: 1.1rem; color: var(--text-muted);">Track clients, log work, generate invoices - all in one place</p>
+      </div>
+      <div class="lang-cs" style="display: none;">
+        <h2 style="font-size: 2rem; margin-bottom: 0.5rem; color: var(--text);">Jednoduchá správa podnikání pro freelancery</h2>
+        <p style="font-size: 1.1rem; color: var(--text-muted);">Sledujte klienty, zaznamenávejte práci, generujte faktury - vše na jednom místě</p>
+      </div>
+    </div>
+
+    <!-- Features as stat cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">👥</div>
+        <div class="lang-en">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Client Management</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Store client info, rates, and banking details securely</p>
         </div>
-        <div class="lang-content" data-lang="cs" style="display: none;">
-          <h3>Správa klientů</h3>
-          <p>Ukládejte informace o klientech, sazby a bankovní údaje bezpečně</p>
+        <div class="lang-cs" style="display: none;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Správa klientů</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Ukládejte informace o klientech, sazby a bankovní údaje bezpečně</p>
         </div>
       </div>
 
-      <!-- Jobs & Time Tracking -->
-      <div class="feature">
-        <span class="icon">⏱️</span>
-        <div class="lang-content" data-lang="en">
-          <h3>Flexible Invoicing</h3>
-          <p><strong>Monthly or by Job</strong> - Invoice your way! Track hours and generate invoices when you need them.</p>
+      <div class="stat-card">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⏱️</div>
+        <div class="lang-en">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Flexible Invoicing</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;"><strong>Monthly or by Job</strong> - Invoice your way! Track hours and generate invoices when you need them.</p>
         </div>
-        <div class="lang-content" data-lang="cs" style="display: none;">
-          <h3>Flexibilní fakturace</h3>
-          <p><strong>Měsíčně nebo podle zakázky</strong> - Fakturujte, jak potřebujete! Sledujte hodiny a generujte faktury, kdy je potřebujete.</p>
-        </div>
-      </div>
-
-      <!-- International Business -->
-      <div class="feature">
-        <span class="icon">🌍</span>
-        <div class="lang-content" data-lang="en">
-          <h3>International Business</h3>
-          <p>Perfect for <strong>UK Ltd, foreign companies</strong>, and international clients. Multi-currency support.</p>
-        </div>
-        <div class="lang-content" data-lang="cs" style="display: none;">
-          <h3>Mezinárodní podnikání</h3>
-          <p>Ideální pro <strong>UK Ltd, zahraniční firmy</strong> a mezinárodní klienty. Podpora více měn.</p>
+        <div class="lang-cs" style="display: none;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Flexibilní fakturace</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;"><strong>Měsíčně nebo podle zakázky</strong> - Fakturujte, jak potřebujete!</p>
         </div>
       </div>
 
-      <!-- Dashboard -->
-      <div class="feature">
-        <span class="icon">📊</span>
-        <div class="lang-content" data-lang="en">
-          <h3>Dashboard & Reports</h3>
-          <p>See your earnings, outstanding payments, and export to CSV/Excel</p>
+      <div class="stat-card">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🌍</div>
+        <div class="lang-en">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">International Business</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Perfect for <strong>UK Ltd, foreign companies</strong>. Multi-currency support.</p>
         </div>
-        <div class="lang-content" data-lang="cs" style="display: none;">
-          <h3>Dashboard a přehledy</h3>
-          <p>Přehled příjmů, nesplacených plateb a export do CSV/Excel</p>
-        </div>
-      </div>
-
-      <!-- Easy to Use -->
-      <div class="feature">
-        <span class="icon">✨</span>
-        <div class="lang-content" data-lang="en">
-          <h3>Easy to Use</h3>
-          <p>Clean, simple interface. No learning curve. Start invoicing in minutes!</p>
-        </div>
-        <div class="lang-content" data-lang="cs" style="display: none;">
-          <h3>Jednoduché používání</h3>
-          <p>Čisté, jednoduché rozhraní. Žádné učení. Začněte fakturovat během minut!</p>
+        <div class="lang-cs" style="display: none;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Mezinárodní podnikání</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Ideální pro <strong>UK Ltd, zahraniční firmy</strong>. Podpora více měn.</p>
         </div>
       </div>
 
-      <!-- Bilingual -->
-      <div class="feature">
-        <span class="icon">🌐</span>
-        <div class="lang-content" data-lang="en">
-          <h3>Fully Bilingual</h3>
-          <p>Complete English & Czech support. All invoices are bilingual by default.</p>
+      <div class="stat-card">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📊</div>
+        <div class="lang-en">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Dashboard & Reports</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">See earnings, outstanding payments, export to CSV/Excel</p>
         </div>
-        <div class="lang-content" data-lang="cs" style="display: none;">
-          <h3>Plně dvojjazyčný</h3>
-          <p>Kompletní podpora angličtiny a češtiny. Všechny faktury jsou dvojjazyčné.</p>
+        <div class="lang-cs" style="display: none;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Dashboard a přehledy</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Příjmy, nesplacené platby, export do CSV/Excel</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">✨</div>
+        <div class="lang-en">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Easy to Use</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Clean, simple interface. Start invoicing in minutes!</p>
+        </div>
+        <div class="lang-cs" style="display: none;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Jednoduché používání</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Čisté, jednoduché rozhraní. Začněte během minut!</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🌐</div>
+        <div class="lang-en">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Fully Bilingual</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Complete English & Czech support. All invoices are bilingual.</p>
+        </div>
+        <div class="lang-cs" style="display: none;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Plně dvojjazyčný</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Kompletní podpora angličtiny a češtiny. Všechny faktury jsou dvojjazyčné.</p>
         </div>
       </div>
     </div>
 
-    <!-- Invoice Template Preview Section -->
-    <div class="landing-hero" style="margin-top: 3rem;">
-      <div class="lang-content" data-lang="en">
-        <h2 style="font-size: 2rem; margin-bottom: 1rem; color: var(--primary);">Professional Invoice Template</h2>
-        <p class="subtitle">Clean, bilingual invoices ready to send</p>
+    <!-- Invoice Template Section -->
+    <div style="margin-top: 4rem;">
+      <div class="lang-en">
+        <h2 style="font-size: 1.75rem; margin-bottom: 1rem; color: var(--text); text-align: center;">Professional Invoice Template</h2>
+        <p style="text-align: center; color: var(--text-muted); margin-bottom: 2rem;">Clean, bilingual invoices ready to send</p>
       </div>
-      <div class="lang-content" data-lang="cs" style="display: none;">
-        <h2 style="font-size: 2rem; margin-bottom: 1rem; color: var(--primary);">Profesionální šablona faktury</h2>
-        <p class="subtitle">Čisté, dvojjazyčné faktury připravené k odeslání</p>
+      <div class="lang-cs" style="display: none;">
+        <h2 style="font-size: 1.75rem; margin-bottom: 1rem; color: var(--text); text-align: center;">Profesionální šablona faktury</h2>
+        <p style="text-align: center; color: var(--text-muted); margin-bottom: 2rem;">Čisté, dvojjazyčné faktury připravené k odeslání</p>
       </div>
 
       <!-- Sample Invoice -->
-      <div style="max-width: 800px; margin: 2rem auto; background: var(--bg-alt); padding: 2rem; border-radius: 0.75rem; border: 2px solid var(--border); text-align: left;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border); padding-bottom: 1.5rem;">
-          <h3 style="font-size: 2rem; font-weight: bold; color: var(--text);">FAKTURA / INVOICE</h3>
-          <div style="text-align: right; font-size: 0.9rem; line-height: 1.8; color: var(--text);">
-            <div><strong>Číslo faktury / Invoice #:</strong> 2024-001</div>
-            <div><strong>Datum vystavení / Issue date:</strong> Nov 9, 2024</div>
-            <div><strong>Datum splatnosti / Due date:</strong> Dec 9, 2024</div>
+      <div class="table-container" style="max-width: 900px; margin: 0 auto;">
+        <div style="padding: 2rem;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--border);">
+            <h3 style="font-size: 2rem; font-weight: bold; color: var(--text);">FAKTURA / INVOICE</h3>
+            <div style="text-align: right; font-size: 0.9rem; line-height: 1.8; color: var(--text);">
+              <div><strong>Číslo faktury / Invoice #:</strong> 2024-001</div>
+              <div><strong>Datum vystavení / Issue date:</strong> Nov 9, 2024</div>
+              <div><strong>Datum splatnosti / Due date:</strong> Dec 9, 2024</div>
+            </div>
           </div>
-        </div>
 
-        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem; gap: 2rem;">
-          <div style="flex: 1;">
-            <h4 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--text);">Dodavatel / Supplier</h4>
-            <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text);">
-              <strong>Your Business Name</strong><br>
-              Your Address<br>
-              Prague, Czech Republic<br>
-              IČO: 12345678
-            </p>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 2rem; gap: 2rem;">
+            <div style="flex: 1;">
+              <h4 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--text); font-size: 1.1rem;">Dodavatel / Supplier</h4>
+              <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text-muted);">
+                <strong style="color: var(--text);">Your Business Name</strong><br>
+                Your Address<br>
+                Prague, Czech Republic<br>
+                IČO: 12345678
+              </p>
+            </div>
+            <div style="flex: 1;">
+              <h4 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--text); font-size: 1.1rem;">Odběratel / Customer</h4>
+              <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text-muted);">
+                <strong style="color: var(--text);">Tech Solutions Ltd</strong><br>
+                123 Business Street<br>
+                London, UK<br>
+                Company No: 87654321
+              </p>
+            </div>
           </div>
-          <div style="flex: 1;">
-            <h4 style="font-weight: bold; margin-bottom: 0.5rem; color: var(--text);">Odběratel / Customer</h4>
-            <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text);">
-              <strong>Tech Solutions Ltd</strong><br>
-              123 Business Street<br>
-              London, UK<br>
-              Company No: 87654321
-            </p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Položka / Description</th>
+                <th style="text-align: right;">Počet hodin / Hours</th>
+                <th style="text-align: right;">Sazba/hod. / Rate</th>
+                <th style="text-align: right;">Částka / Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Web Development Services</td>
+                <td style="text-align: right;">40.00</td>
+                <td style="text-align: right;">50.00 GBP</td>
+                <td style="text-align: right;">2,000.00 GBP</td>
+              </tr>
+              <tr>
+                <td>Consultation & Planning</td>
+                <td style="text-align: right;">10.00</td>
+                <td style="text-align: right;">50.00 GBP</td>
+                <td style="text-align: right;">500.00 GBP</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="text-align: right; font-size: 1.25rem; font-weight: bold; padding-top: 1.5rem; margin-top: 1.5rem; border-top: 2px solid var(--border); color: var(--primary);">
+            CELKEM K ÚHRADĚ / TOTAL DUE: 2,500.00 GBP
           </div>
-        </div>
 
-        <table style="width: 100%; border-collapse: collapse; margin: 1.5rem 0;">
-          <thead>
-            <tr style="background: var(--bg); border-bottom: 2px solid var(--border);">
-              <th style="padding: 0.75rem; text-align: left; font-size: 0.85rem; color: var(--text);">Položka / Description</th>
-              <th style="padding: 0.75rem; text-align: right; font-size: 0.85rem; color: var(--text);">Počet hodin / Hours</th>
-              <th style="padding: 0.75rem; text-align: right; font-size: 0.85rem; color: var(--text);">Sazba/hod. / Rate</th>
-              <th style="padding: 0.75rem; text-align: right; font-size: 0.85rem; color: var(--text);">Částka / Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom: 1px solid var(--border);">
-              <td style="padding: 0.75rem; color: var(--text);">Web Development Services</td>
-              <td style="padding: 0.75rem; text-align: right; color: var(--text);">40.00</td>
-              <td style="padding: 0.75rem; text-align: right; color: var(--text);">50.00 GBP</td>
-              <td style="padding: 0.75rem; text-align: right; color: var(--text);">2,000.00 GBP</td>
-            </tr>
-            <tr style="border-bottom: 1px solid var(--border);">
-              <td style="padding: 0.75rem; color: var(--text);">Consultation & Planning</td>
-              <td style="padding: 0.75rem; text-align: right; color: var(--text);">10.00</td>
-              <td style="padding: 0.75rem; text-align: right; color: var(--text);">50.00 GBP</td>
-              <td style="padding: 0.75rem; text-align: right; color: var(--text);">500.00 GBP</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="text-align: right; font-size: 1.25rem; font-weight: bold; padding-top: 1rem; border-top: 2px solid var(--border); color: var(--primary);">
-          CELKEM K ÚHRADĚ / TOTAL DUE: 2,500.00 GBP
-        </div>
-
-        <div style="margin-top: 1.5rem; font-size: 0.85rem; line-height: 1.8; color: var(--text-muted);">
-          <p><strong>Bankovní spojení / Bank Details:</strong> CZ00 0000 0000 0000 0000</p>
-          <p><em>Nejsem plátce DPH. / Not a VAT payer.</em></p>
+          <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; color: var(--text-muted);">
+            <p><strong>Bankovní spojení / Bank Details:</strong> CZ00 0000 0000 0000 0000</p>
+            <p style="margin-top: 0.5rem;"><em>Nejsem plátce DPH. / Not a VAT payer.</em></p>
+          </div>
         </div>
       </div>
 
-      <div class="lang-content" data-lang="en">
-        <p style="margin-top: 1rem; color: var(--text-muted);">✓ Clean bilingual format<br>✓ Professional appearance<br>✓ Print & PDF export ready</p>
+      <div class="lang-en">
+        <p style="text-align: center; margin-top: 2rem; color: var(--text-muted);">✓ Clean bilingual format • ✓ Professional appearance • ✓ Print & PDF export ready</p>
       </div>
-      <div class="lang-content" data-lang="cs" style="display: none;">
-        <p style="margin-top: 1rem; color: var(--text-muted);">✓ Čistý dvojjazyčný formát<br>✓ Profesionální vzhled<br>✓ Připraveno pro tisk a PDF export</p>
+      <div class="lang-cs" style="display: none;">
+        <p style="text-align: center; margin-top: 2rem; color: var(--text-muted);">✓ Čistý dvojjazyčný formát • ✓ Profesionální vzhled • ✓ Připraveno pro tisk a PDF export</p>
       </div>
     </div>
 
@@ -209,10 +212,16 @@
     const themes = ['light', 'dark', 'retro'];
     let currentThemeIndex = 0;
 
-    // Initialize theme from localStorage
+    // Initialize theme
     const savedTheme = localStorage.getItem('theme') || 'light';
     currentThemeIndex = themes.indexOf(savedTheme);
     document.body.dataset.theme = savedTheme;
+
+    // Initialize language
+    const savedLang = localStorage.getItem('lang') || 'en';
+    currentLang = savedLang;
+    document.getElementById('langSelect').value = savedLang;
+    updateLanguage();
 
     // Theme Toggle
     document.getElementById('themeToggle').addEventListener('click', () => {
@@ -222,45 +231,40 @@
       localStorage.setItem('theme', newTheme);
     });
 
-    // Language Toggle
-    document.getElementById('langToggle').addEventListener('click', () => {
-      currentLang = currentLang === 'en' ? 'cs' : 'en';
-      document.getElementById('langLabel').textContent = currentLang.toUpperCase();
-
-      // Show/hide content based on language
-      document.querySelectorAll('.lang-content').forEach(el => {
-        if (el.dataset.lang === currentLang) {
-          el.style.display = '';
-        } else {
-          el.style.display = 'none';
-        }
-      });
-
+    // Language Select
+    document.getElementById('langSelect').addEventListener('change', (e) => {
+      currentLang = e.target.value;
       localStorage.setItem('lang', currentLang);
+      updateLanguage();
     });
 
-    // Netlify Identity - only if available
+    function updateLanguage() {
+      document.querySelectorAll('.lang-en').forEach(el => {
+        el.style.display = currentLang === 'en' ? '' : 'none';
+      });
+      document.querySelectorAll('.lang-cs').forEach(el => {
+        el.style.display = currentLang === 'cs' ? '' : 'none';
+      });
+    }
+
+    // Netlify Identity
     if (window.netlifyIdentity) {
       const netlifyIdentity = window.netlifyIdentity;
 
-      // Initialize Netlify Identity
       netlifyIdentity.on('init', user => {
         if (user) {
           window.location.href = '/app.html';
         }
       });
 
-      // Login button
       document.getElementById('loginBtn').addEventListener('click', () => {
         netlifyIdentity.open('login');
       });
 
-      // Redirect after login
       netlifyIdentity.on('login', () => {
         window.location.href = '/app.html';
       });
     } else {
-      // If Netlify Identity not available (preview mode), just show alert
       document.getElementById('loginBtn').addEventListener('click', () => {
         alert('Login will work when deployed to Netlify');
       });
