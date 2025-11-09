@@ -25,7 +25,37 @@ exports.handler = async (event) => {
   }
 
   try {
+    // SECURITY: Verify user is authenticated via Netlify Identity
+    const user = event.context.clientContext?.user;
+    if (!user) {
+      return {
+        statusCode: 401,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Not authenticated' })
+      };
+    }
+
+    // Get the authenticated user's ID from the token (cannot be faked)
+    const authenticatedUserId = user.sub;
+
     const { method, endpoint, body } = JSON.parse(event.body || '{}');
+
+    // SECURITY: Force all requests to use the authenticated user's ID
+    let safeEndpoint = endpoint;
+
+    // Replace any user_id in the endpoint with the authenticated user's ID
+    if (safeEndpoint.includes('user_id=')) {
+      safeEndpoint = safeEndpoint.replace(/user_id=eq\.[^&]+/g, `user_id=eq.${authenticatedUserId}`);
+    } else {
+      // Add user_id filter if not present
+      safeEndpoint += (safeEndpoint.includes('?') ? '&' : '?') + `user_id=eq.${authenticatedUserId}`;
+    }
+
+    // SECURITY: Force user_id in POST/PATCH body
+    let safeBody = body;
+    if (body && (method === 'POST' || method === 'PATCH')) {
+      safeBody = { ...body, user_id: authenticatedUserId };
+    }
 
     // Try primary env names first
     let SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL_PUBLIC || null;
@@ -55,7 +85,7 @@ exports.handler = async (event) => {
       };
     }
 
-    const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/${endpoint}`;
+    const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/${safeEndpoint}`;
 
     const res = await fetch(url, {
       method: method || 'GET',
@@ -65,7 +95,7 @@ exports.handler = async (event) => {
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'
       },
-      body: body ? JSON.stringify(body) : undefined
+      body: safeBody ? JSON.stringify(safeBody) : undefined
     });
 
     const data = await res.text();
