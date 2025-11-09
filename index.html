@@ -43,8 +43,36 @@
     </div>
 
     <!-- Features as stat cards -->
+    <!-- Top Row - 2 wide cards -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+      <div class="stat-card" style="text-align: center;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🌐</div>
+        <div class="lang-en">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Fully Bilingual</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Complete English & Czech support. All invoices are bilingual.</p>
+        </div>
+        <div class="lang-cs" style="display: none;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Plně dvojjazyčný</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Kompletní podpora angličtiny a češtiny. Všechny faktury jsou dvojjazyčné.</p>
+        </div>
+      </div>
+
+      <div class="stat-card" style="text-align: center;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🌍</div>
+        <div class="lang-en">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Offshore</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Perfect for <strong>UK Ltd, foreign companies</strong>. Multi-currency support.</p>
+        </div>
+        <div class="lang-cs" style="display: none;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Offshore</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Ideální pro <strong>UK Ltd, zahraniční firmy</strong>. Podpora více měn.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Rows - Regular cards -->
     <div class="stats-grid">
-      <div class="stat-card">
+      <div class="stat-card" style="text-align: center;">
         <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">👥</div>
         <div class="lang-en">
           <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Client Management</h3>
@@ -56,7 +84,7 @@
         </div>
       </div>
 
-      <div class="stat-card">
+      <div class="stat-card" style="text-align: center;">
         <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⏱️</div>
         <div class="lang-en">
           <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Flexible Invoicing</h3>
@@ -68,19 +96,7 @@
         </div>
       </div>
 
-      <div class="stat-card">
-        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🌍</div>
-        <div class="lang-en">
-          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">International Business</h3>
-          <p style="color: var(--text-muted); font-size: 0.9rem;">Perfect for <strong>UK Ltd, foreign companies</strong>. Multi-currency support.</p>
-        </div>
-        <div class="lang-cs" style="display: none;">
-          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Mezinárodní podnikání</h3>
-          <p style="color: var(--text-muted); font-size: 0.9rem;">Ideální pro <strong>UK Ltd, zahraniční firmy</strong>. Podpora více měn.</p>
-        </div>
-      </div>
-
-      <div class="stat-card">
+      <div class="stat-card" style="text-align: center;">
         <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📊</div>
         <div class="lang-en">
           <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Dashboard & Reports</h3>
@@ -92,7 +108,7 @@
         </div>
       </div>
 
-      <div class="stat-card">
+      <div class="stat-card" style="text-align: center;">
         <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">✨</div>
         <div class="lang-en">
           <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Easy to Use</h3>
@@ -103,18 +119,14 @@
           <p style="color: var(--text-muted); font-size: 0.9rem;">Čisté, jednoduché rozhraní. Začněte během minut!</p>
         </div>
       </div>
+    </div>
 
-      <div class="stat-card">
-        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🌐</div>
-        <div class="lang-en">
-          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Fully Bilingual</h3>
-          <p style="color: var(--text-muted); font-size: 0.9rem;">Complete English & Czech support. All invoices are bilingual.</p>
-        </div>
-        <div class="lang-cs" style="display: none;">
-          <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); font-weight: 600;">Plně dvojjazyčný</h3>
-          <p style="color: var(--text-muted); font-size: 0.9rem;">Kompletní podpora angličtiny a češtiny. Všechny faktury jsou dvojjazyčné.</p>
-        </div>
-      </div>
+    <!-- CTA after features -->
+    <div style="text-align: center; margin: 3rem 0;">
+      <button id="loginBtn2" class="btn-primary" style="font-size: 1.1rem; padding: 1rem 2.5rem;">
+        <span class="lang-en">Get Started Now</span>
+        <span class="lang-cs" style="display: none;">Začít nyní</span>
+      </button>
     </div>
 
     <!-- Invoice Template Section -->
@@ -197,12 +209,45 @@
         </div>
       </div>
 
-      <div class="lang-en">
-        <p style="text-align: center; margin-top: 2rem; color: var(--text-muted);">✓ Clean bilingual format • ✓ Professional appearance • ✓ Print & PDF export ready</p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 2rem;">
+        <div class="stat-card" style="text-align: center; padding: 1rem;">
+          <div class="lang-en">
+            <p style="color: var(--primary); font-weight: 600;">✓ Clean bilingual format</p>
+          </div>
+          <div class="lang-cs" style="display: none;">
+            <p style="color: var(--primary); font-weight: 600;">✓ Čistý dvojjazyčný formát</p>
+          </div>
+        </div>
+        <div class="stat-card" style="text-align: center; padding: 1rem;">
+          <div class="lang-en">
+            <p style="color: var(--primary); font-weight: 600;">✓ Professional appearance</p>
+          </div>
+          <div class="lang-cs" style="display: none;">
+            <p style="color: var(--primary); font-weight: 600;">✓ Profesionální vzhled</p>
+          </div>
+        </div>
+        <div class="stat-card" style="text-align: center; padding: 1rem;">
+          <div class="lang-en">
+            <p style="color: var(--primary); font-weight: 600;">✓ Print & PDF export</p>
+          </div>
+          <div class="lang-cs" style="display: none;">
+            <p style="color: var(--primary); font-weight: 600;">✓ Tisk a PDF export</p>
+          </div>
+        </div>
       </div>
-      <div class="lang-cs" style="display: none;">
-        <p style="text-align: center; margin-top: 2rem; color: var(--text-muted);">✓ Čistý dvojjazyčný formát • ✓ Profesionální vzhled • ✓ Připraveno pro tisk a PDF export</p>
+
+      <!-- CTA after invoice -->
+      <div style="text-align: center; margin: 3rem 0;">
+        <button id="loginBtn3" class="btn-primary" style="font-size: 1.1rem; padding: 1rem 2.5rem;">
+          <span class="lang-en">Start Invoicing Now</span>
+          <span class="lang-cs" style="display: none;">Začít fakturovat nyní</span>
+        </button>
       </div>
+    </div>
+
+    <!-- Footer with emoji switcher -->
+    <div style="text-align: center; padding: 3rem 0 2rem 0; color: var(--text-muted); font-size: 0.9rem;">
+      <p>© 2024 BizzHub • Made with <span id="emojiSwitch">😈</span></p>
     </div>
 
   </div>
@@ -247,7 +292,36 @@
       });
     }
 
+    // Emoji switcher animation
+    const emojis = ['🍆', '😈', '❤️', '😎', '😵‍💫', '☕', '🤪', '🧠', '🦄'];
+    let emojiIndex = 1; // Start at 😈
+    const emojiElement = document.getElementById('emojiSwitch');
+
+    setInterval(() => {
+      emojiElement.style.transform = 'translateY(-10px)';
+      emojiElement.style.opacity = '0';
+
+      setTimeout(() => {
+        emojiIndex = (emojiIndex + 1) % emojis.length;
+        emojiElement.textContent = emojis[emojiIndex];
+        emojiElement.style.transform = 'translateY(0)';
+        emojiElement.style.opacity = '1';
+      }, 200);
+    }, 2000);
+
+    // Style the emoji for smooth transitions
+    emojiElement.style.transition = 'all 0.2s ease';
+    emojiElement.style.display = 'inline-block';
+
     // Netlify Identity
+    const handleLogin = () => {
+      if (window.netlifyIdentity) {
+        window.netlifyIdentity.open('login');
+      } else {
+        alert('Login will work when deployed to Netlify');
+      }
+    };
+
     if (window.netlifyIdentity) {
       const netlifyIdentity = window.netlifyIdentity;
 
@@ -257,18 +331,15 @@
         }
       });
 
-      document.getElementById('loginBtn').addEventListener('click', () => {
-        netlifyIdentity.open('login');
-      });
-
       netlifyIdentity.on('login', () => {
         window.location.href = '/app.html';
       });
-    } else {
-      document.getElementById('loginBtn').addEventListener('click', () => {
-        alert('Login will work when deployed to Netlify');
-      });
     }
+
+    // All login buttons
+    document.getElementById('loginBtn').addEventListener('click', handleLogin);
+    document.getElementById('loginBtn2').addEventListener('click', handleLogin);
+    document.getElementById('loginBtn3').addEventListener('click', handleLogin);
   </script>
 </body>
 </html>
