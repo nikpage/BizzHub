@@ -987,12 +987,17 @@ async function createInvoiceFromJob(jobId) {
     id: invoiceId,
     client_id: job.client_id,
     job_id: jobId,
-    items: JSON.stringify([{ description: dateRange, hours: hours, rate: rate }]),
+    items: JSON.stringify([{
+      description: description,
+      hours: hours,
+      rate: rate,
+      dateRange: dateRange
+    }]),
     date_issued: new Date().toISOString(),
     due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
     total: total,
     status: 'unpaid',
-    meta: JSON.stringify({ description: description, currency: currency })
+    meta: JSON.stringify({ currency: currency })
   };
 
   try {
@@ -1346,7 +1351,10 @@ window.downloadInvoice = async (id) => {
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true });
+  const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true, orientation: 'p', unit: 'mm', format: 'a4' });
+
+  // Set font that supports Czech characters
+  doc.setFont('Helvetica', 'normal');
 
   // Remove auto header/date metadata entirely
   doc.setProperties({ title: `invoice-${inv.id}` });
