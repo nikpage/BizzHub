@@ -21,6 +21,14 @@ class Database {
         headers['Prefer'] = 'return=representation';
       }
 
+      // SECURITY: Add Netlify Identity token to authenticate the request
+      if (typeof window !== 'undefined' && window.netlifyIdentity) {
+        const user = window.netlifyIdentity.currentUser();
+        if (user && user.token && user.token.access_token) {
+          headers['Authorization'] = `Bearer ${user.token.access_token}`;
+        }
+      }
+
       res = await fetch(`${baseUrl}/.netlify/functions/db-proxy`, {
         method: 'POST',
         headers: headers,

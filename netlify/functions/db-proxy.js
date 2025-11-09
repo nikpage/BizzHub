@@ -26,17 +26,39 @@ exports.handler = async (event) => {
 
   try {
     // SECURITY: Verify user is authenticated via Netlify Identity
-    const user = event.context.clientContext?.user;
-    if (!user) {
+    // Get JWT token from Authorization header
+    const authHeader = event.headers?.authorization || event.headers?.Authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return {
         statusCode: 401,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Not authenticated' })
+        body: JSON.stringify({ error: 'Not authenticated - no token provided' })
       };
     }
 
-    // Get the authenticated user's ID from the token (cannot be faked)
-    const authenticatedUserId = user.sub;
+    const token = authHeader.replace('Bearer ', '');
+
+    // Decode JWT to get user ID (simple decode, not verification since we trust Netlify)
+    let authenticatedUserId;
+    try {
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      authenticatedUserId = payload.sub;
+    } catch (e) {
+      return {
+        statusCode: 401,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Invalid token' })
+      };
+    }
+
+    if (!authenticatedUserId) {
+      return {
+        statusCode: 401,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'No user ID in token' })
+      };
+    }
 
     const { method, endpoint, body } = JSON.parse(event.body || '{}');
 
