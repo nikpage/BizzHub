@@ -992,7 +992,7 @@ async function createInvoiceFromJob(jobId) {
       hours: hours,
       rate: rate
     }]),
-    date_issued: new Date().toISOString(),
+    created_at: new Date().toISOString(),
     due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
     total: total,
     status: 'unpaid',
