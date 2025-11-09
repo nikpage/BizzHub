@@ -191,7 +191,9 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  flex-wrap: wrap;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .header-left h1 {
@@ -219,6 +221,9 @@ body {
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .nav-tab {
