@@ -985,7 +985,6 @@ async function createInvoiceFromJob(jobId) {
 
   const invoiceData = {
     id: invoiceId,
-    created_at: new Date().toISOString(),
     client_id: job.client_id,
     items: JSON.stringify([{
       description: fullDescription,
