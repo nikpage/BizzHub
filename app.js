@@ -959,6 +959,11 @@ async function createInvoiceFromJob(jobId) {
   if (dateRange) descParts.push(dateRange);
   const description = descParts.join('\n');
 
+  const hours = parseFloat(job.hours) || 0;
+  const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
+  const currency = job.currency || client.currency || 'USD';
+  const total = hours * rate;
+
   // Generate invoice ID in format YYMMDD-II
   const now = new Date();
   const yy = String(now.getFullYear()).slice(-2);
