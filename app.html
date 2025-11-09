@@ -17,39 +17,43 @@
 <body>
   <!-- Header -->
   <header class="app-header">
-    <div class="header-left">
-      <h1>🚀 BizzHub</h1>
-    </div>
-    <div class="header-right">
-      <select id="langSelect" class="header-select">
-        <option value="en">EN</option>
-        <option value="cs">CS</option>
-      </select>
-
-      <button id="themeToggle" class="btn-icon" title="Toggle theme">🌓</button>
-
-      <span id="userEmail" class="user-email"></span>
-
-      <div class="dropdown">
-        <button class="btn-secondary dropdown-toggle">⚙️ Settings</button>
-        <div class="dropdown-menu">
-          <button id="profileBtn" class="dropdown-item">My Profile</button>
-          <button id="backupBtn" class="dropdown-item">Backup Data</button>
-          <button id="restoreBtn" class="dropdown-item">Restore Data</button>
-        </div>
+    <div>
+      <div class="header-left">
+        <h1>🚀 BizzHub</h1>
       </div>
+      <div class="header-right">
+        <select id="langSelect" class="header-select">
+          <option value="en">EN</option>
+          <option value="cs">CS</option>
+        </select>
 
-      <button id="logoutBtn" class="btn-danger">Logout</button>
+        <button id="themeToggle" class="btn-icon" title="Toggle theme">🌓</button>
+
+        <span id="userEmail" class="user-email"></span>
+
+        <div class="dropdown">
+          <button class="btn-secondary dropdown-toggle">⚙️ Settings</button>
+          <div class="dropdown-menu">
+            <button id="profileBtn" class="dropdown-item">My Profile</button>
+            <button id="backupBtn" class="dropdown-item">Backup Data</button>
+            <button id="restoreBtn" class="dropdown-item">Restore Data</button>
+          </div>
+        </div>
+
+        <button id="logoutBtn" class="btn-danger">Logout</button>
+      </div>
     </div>
   </header>
 
   <!-- Navigation -->
   <nav class="app-nav">
-    <button class="nav-tab active" data-view="dashboard">📊 Dashboard</button>
-    <button class="nav-tab" data-view="clients">👥 Clients</button>
-    <button class="nav-tab" data-view="jobs">💼 Jobs</button>
-    <button class="nav-tab" data-view="worklogs">⏱️ Work Logs</button>
-    <button class="nav-tab" data-view="trash">🗑️ Trash</button>
+    <div class="nav-tabs-wrapper">
+      <button class="nav-tab active" data-view="dashboard">📊 Dashboard</button>
+      <button class="nav-tab" data-view="clients">👥 Clients</button>
+      <button class="nav-tab" data-view="jobs">💼 Jobs</button>
+      <button class="nav-tab" data-view="worklogs">⏱️ Work Logs</button>
+      <button class="nav-tab" data-view="trash">🗑️ Trash</button>
+    </div>
   </nav>
 
   <!-- Main View Container -->

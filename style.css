@@ -186,7 +186,14 @@ body {
 .app-header {
   background: var(--bg-alt);
   border-bottom: 2px solid var(--border);
-  padding: 1rem 2rem;
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.app-header > div {
+  width: 100%;
+  max-width: 1400px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -215,10 +222,17 @@ body {
 .app-nav {
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-  padding: 0.5rem 2rem;
+  padding: 0.5rem;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+.nav-tabs-wrapper {
+  max-width: 1400px;
+  width: 100%;
   display: flex;
   gap: 0.5rem;
-  overflow-x: auto;
 }
 
 .nav-tab {
@@ -687,7 +701,11 @@ textarea {
 /* Responsive */
 @media (max-width: 768px) {
   .app-header {
-    padding: 1rem;
+    padding: 0.5rem;
+  }
+
+  .app-header > div {
+    padding: 0.5rem;
   }
 
   .header-right {
@@ -696,7 +714,11 @@ textarea {
   }
 
   .app-nav {
-    padding: 0.5rem 1rem;
+    padding: 0.5rem;
+  }
+
+  .nav-tabs-wrapper {
+    padding: 0 0.5rem;
   }
 
   .main-view {
