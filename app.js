@@ -1345,7 +1345,6 @@ window.downloadInvoice = async (id) => {
 
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
-
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
@@ -1356,7 +1355,7 @@ window.downloadInvoice = async (id) => {
   doc.text(`Číslo faktury / Invoice #: ${inv.id}`, 20, 35);
   doc.text(`Datum vystavení / Issue date: ${formatDate(inv.created_at)}`, 20, 42);
   doc.text(`Datum splatnosti / Due date: ${formatDate(inv.due_date)}`, 20, 49);
-  doc.text(`Forma úhrady / Payment: Bankovní převod / Bank transfer`, 20, 56);
+  doc.text('Forma úhrady / Payment: Bankovní převod / Bank transfer', 20, 56);
 
   doc.setLineWidth(0.5);
   doc.line(20, 62, 190, 62);
@@ -1369,13 +1368,13 @@ window.downloadInvoice = async (id) => {
   let y = 78;
   doc.text(state.profile?.name || 'Your Business', 20, y);
   if (state.profile?.address) { y += 5; doc.text(state.profile.address, 20, y); }
-  if (state.profile?.email) { y += 5; doc.text(state.profile.email, 20, y); }
-  if (Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length) {
-    state.profile.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); });
-  } else {
-    for (let i=1;i<=4;i++){ const l = state.profile?.[`id_label_${i}`]; const n = state.profile?.[`id_number_${i}`]; if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 20, y); } }
-  }
-  if (state.profile?.email) { y += 5; doc.text(state.profile.email, 20, y); }
+  const supplierIds = Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length
+    ? state.profile.id_entries
+    : Array.from({length: 4}, (_, i) => ({
+        label: state.profile?.[`id_label_${i+1}`],
+        number: state.profile?.[`id_number_${i+1}`]
+      })).filter(e => e.label || e.number);
+  supplierIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); });
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
@@ -1386,11 +1385,13 @@ window.downloadInvoice = async (id) => {
   doc.text(client?.name || '-', 110, y);
   if (client?.address) { y += 5; doc.text(client.address, 110, y); }
   if (client?.invoice_email) { y += 5; doc.text(client.invoice_email, 110, y); }
-  if (Array.isArray(client?.id_entries) && client.id_entries.length) {
-    client.id_entries.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
-  } else {
-    for (let i=1;i<=4;i++){ const l = client?.[`id_label_${i}`]; const n = client?.[`id_number_${i}`]; if (l || n) { y += 5; doc.text(`${l || 'ID'}: ${n || ''}`, 110, y); } }
-  }
+  const clientIds = Array.isArray(client?.id_entries) && client.id_entries.length
+    ? client.id_entries
+    : Array.from({length: 4}, (_, i) => ({
+        label: client?.[`id_label_${i+1}`],
+        number: client?.[`id_number_${i+1}`]
+      })).filter(e => e.label || e.number);
+  clientIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
 
   y = Math.max(y, 95) + 10;
 
@@ -1428,7 +1429,7 @@ window.downloadInvoice = async (id) => {
 
   doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
-  doc.text('CELKEM / TOTAL:', 120, y);
+  doc.text('CELKEM K ÚHRADĚ / TOTAL DUE:', 120, y);
   doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
   y += 15;
@@ -1444,6 +1445,7 @@ window.downloadInvoice = async (id) => {
 
   doc.save(`invoice-${inv.id}.pdf`);
 };
+
 
 
 window.deleteInvoice = async (id) => {
