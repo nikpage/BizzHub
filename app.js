@@ -947,14 +947,9 @@ async function createInvoiceFromJob(jobId) {
     return;
   }
 
-  const descParts = [job.name];
-  if (job.description) descParts.push(job.description);
-  if (job.address) descParts.push(job.address);
-  const description = descParts.join('\n');
-
   const hours = parseFloat(job.hours) || 0;
   const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
-  const currency = job.currency || client.currency || 'USD';
+  const currency = job.currency || client.currency || 'CZK';
   const total = hours * rate;
 
   let dateRange = '';
@@ -964,6 +959,12 @@ async function createInvoiceFromJob(jobId) {
     dateRange = formatDate(job.start_date);
   }
 
+  const descParts = [job.name];
+  if (job.description) descParts.push(job.description);
+  if (job.address) descParts.push(job.address);
+  if (dateRange) descParts.push(dateRange);
+  const fullDescription = descParts.join('\n');
+
   // Generate invoice ID in format YYMMDD-II
   const now = new Date();
   const yy = String(now.getFullYear()).slice(-2);
@@ -971,7 +972,6 @@ async function createInvoiceFromJob(jobId) {
   const dd = String(now.getDate()).padStart(2, '0');
   const datePrefix = `${yy}${mm}${dd}`;
 
-  // Find highest increment for today
   const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
   let nextIncrement = 1;
   if (todayInvoices.length > 0) {
@@ -986,13 +986,14 @@ async function createInvoiceFromJob(jobId) {
   const invoiceData = {
     id: invoiceId,
     client_id: job.client_id,
-    job_id: jobId,
-    items: JSON.stringify([{ description: dateRange, hours: hours, rate: rate }]),
-    date_issued: new Date().toISOString(),
-    due_date: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+    items: JSON.stringify([{
+      description: fullDescription,
+      hours: hours,
+      rate: rate
+    }]),
     total: total,
     status: 'unpaid',
-    meta: JSON.stringify({ description: description, currency: currency })
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   };
 
   try {
@@ -1346,7 +1347,10 @@ window.downloadInvoice = async (id) => {
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true });
+  const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true, orientation: 'p', unit: 'mm', format: 'a4' });
+
+  // Set font that supports Czech characters
+  doc.setFont('Helvetica', 'normal');
 
   // Remove auto header/date metadata entirely
   doc.setProperties({ title: `invoice-${inv.id}` });
