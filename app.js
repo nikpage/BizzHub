@@ -128,17 +128,14 @@ function setupEventListeners() {
   });
 }
 
-// Load all data
 async function loadData() {
   try {
-    [state.clients, state.jobs, state.timesheets, state.invoices, state.profile] =
-      await Promise.all([
-        database.getClients(),
-        database.getJobs(),
-        database.getTimesheets(),
-        database.getInvoices(),
-        database.getProfile()
-      ]);
+    const data = await database.loadDashboard();
+    state.clients = data.clients || [];
+    state.jobs = data.jobs || [];
+    state.timesheets = data.timesheets || [];
+    state.invoices = data.invoices || [];
+    state.profile = data.business;
   } catch (error) {
     showToast(t('error'), 'error');
     console.error('Failed to load data:', error);
