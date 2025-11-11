@@ -99,9 +99,8 @@ exports.handler = async (event) => {
     const response = {};
     results.forEach(result => {
       if (result.status === 200) {
-        response[result.key] = result.data;
-      } else {
-        response[result.key] = null;
+        // Business should be a single object, not array
+        response[result.key] = result.key === 'business' ? result.data[0] : result.data;
       }
     });
 
