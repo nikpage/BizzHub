@@ -169,21 +169,15 @@ class Database {
   }
 
   async create(table, record) {
-    const baseData = {
-      ...record,
-      user_id: this.userId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    // Only add deleted field to tables that have it
-    if (['clients','jobs','timesheets','invoices','business'].includes(table)) {
-      baseData.deleted = false;
-    }
-
     const data = await this.request(table, {
       method: 'POST',
-      body: baseData
+      body: {
+        ...record,
+        user_id: this.userId,
+        deleted: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
     });
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error(`Failed to create ${table} record - database returned no data`);
@@ -277,34 +271,6 @@ class Database {
 
   async deleteJob(id) {
     return this.softDelete('jobs', id);
-  }
-
-  async getJobLines(jobId) {
-    return this.request(`job_lines?job_id=eq.${jobId}&user_id=eq.${this.userId}&type=in.(expense,deposit)&order=sort_order.asc&select=*`);
-  }
-
-  async saveJobLine(line) {
-    // Only allow expense and deposit types
-    if (!['expense', 'deposit'].includes(line.type)) {
-      throw new Error('Job lines can only be expenses or deposits');
-    }
-
-    const baseData = {
-      ...line,
-      user_id: this.userId,
-      created_at: line.id ? undefined : new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    return line.id
-      ? await this.update('job_lines', line.id, baseData)
-      : await this.create('job_lines', baseData);
-  }
-
-  async deleteJobLine(id) {
-    await this.request(`job_lines?id=eq.${id}&user_id=eq.${this.userId}`, { method: 'DELETE' });
-    this.clearCache('job_lines');
-    return true;
   }
 
   async getTimesheets() {

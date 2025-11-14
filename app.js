@@ -717,21 +717,16 @@ function showClientForm(clientId = null) {
     }
   });
 }
-async function showJobForm(jobId = null) {
+function showJobForm(jobId = null) {
   const job = jobId ? state.jobs.find(j => j.id === jobId) : {};
-
-  // Load expense/deposit lines if editing
-  let lines = [];
-  if (jobId) {
-    lines = await database.getJobLines(jobId);
-  }
+  const expenses = job?.expenses || [{ description: '', amount: 0 }];
 
   showModal(jobId ? t('editJob') : t('addJob'), `
     <form id="jobForm">
       <div class="form-grid">
         <div class="form-group">
           <label>${t('client')} *</label>
-          <select name="client_id" required id="clientSelect">
+          <select name="client_id" required>
             <option value="">${t('selectClient')}</option>
             ${state.clients.map(c => `
               <option value="${c.id}" ${job.client_id === c.id ? 'selected' : ''}>${c.name}</option>
@@ -766,17 +761,17 @@ async function showJobForm(jobId = null) {
 
         <div class="form-group">
           <label>${t('hours')}</label>
-          <input type="number" name="hours" id="hoursInput" value="${job.hours || ''}" step="1" min="0">
+          <input type="number" name="hours" value="${job.hours || ''}" step="0.01" onchange="updateJobCalculations()">
         </div>
 
         <div class="form-group">
           <label>${t('rate')}</label>
-          <input type="number" name="rate" id="rateInput" value="${job.rate || (job.client_id ? (state.clients.find(c => c.id === job.client_id)?.rate || '') : '')}" step="0.01">
+          <input type="number" name="rate" value="${job.rate || (job.client_id ? (state.clients.find(c => c.id === job.client_id)?.rate || '') : '')}" step="0.01" onchange="updateJobCalculations()">
         </div>
 
         <div class="form-group">
           <label>${t('currency')}</label>
-          <select name="currency" id="currencySelect">
+          <select name="currency">
             ${(() => {
               const client = job.client_id ? state.clients.find(c => c.id === job.client_id) : null;
               const cur = job.currency || client?.currency || '';
@@ -790,8 +785,34 @@ async function showJobForm(jobId = null) {
           </select>
         </div>
 
-        <div class="form-group full-width" id="linesContainer">
-          <!-- Lines table will be rendered here -->
+        <div class="form-group full-width">
+          <h3>${t('expenses')}</h3>
+          <div id="expensesContainer">
+            ${expenses.map((expense, index) => `
+              <div class="expense-row" data-index="${index}">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                  <input type="text" name="expense_description_${index}" placeholder="${t('description')}" value="${expense.description || ''}" style="flex: 2;" onchange="updateJobCalculations()">
+                  <input type="number" name="expense_amount_${index}" placeholder="${t('amount')}" value="${expense.amount || ''}" step="0.01" min="0" style="flex: 1;" onchange="updateJobCalculations()">
+                  ${index > 0 ? `<button type="button" class="btn-danger" onclick="removeExpense(${index})">×</button>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <button type="button" class="btn-secondary" onclick="addNewExpense()">${t('addNewExpense')}</button>
+        </div>
+
+        <div class="form-group">
+          <label>${t('deposit')}</label>
+          <input type="number" name="deposit" value="${job.deposit || ''}" step="0.01" min="0" onchange="updateJobCalculations()">
+        </div>
+
+        <div class="form-group full-width">
+          <div class="job-calculations" style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #f9f9f9;">
+            <div style="margin-bottom: 5px;"><strong>${t('jobSubtotal')}: <span id="jobSubtotal">0.00</span></strong></div>
+            <div style="margin-bottom: 5px;"><strong>${t('totalExpenses')}: <span id="totalExpenses">0.00</span></strong></div>
+            <div style="margin-bottom: 5px;"><strong>${t('totalInvoice')}: <span id="totalInvoice">0.00</span></strong></div>
+            <div style="margin-bottom: 5px;"><strong>${t('totalDue')}: <span id="totalDue">0.00</span></strong></div>
+          </div>
         </div>
 
       </div>
@@ -799,10 +820,21 @@ async function showJobForm(jobId = null) {
       <input type="hidden" name="id" value="${job.id || ''}">
     </form>
     `, async () => {
-      // Save job
       const form = document.getElementById('jobForm');
       const formData = new FormData(form);
       const data = Object.fromEntries(formData);
+
+      // Collect expenses
+      const expenses = [];
+      let index = 0;
+      while (formData.get(`expense_description_${index}`) !== null || formData.get(`expense_amount_${index}`) !== null) {
+        const description = formData.get(`expense_description_${index}`) || '';
+        const amount = parseFloat(formData.get(`expense_amount_${index}`)) || 0;
+        if (description || amount > 0) {
+          expenses.push({ description, amount });
+        }
+        index++;
+      }
 
       if (data.client_id) {
         const client = state.clients.find(c => c.id === data.client_id);
@@ -818,180 +850,117 @@ async function showJobForm(jobId = null) {
       if (data.hours === '') delete data.hours;
       if (data.start_date === '') delete data.start_date;
       if (data.end_date === '') delete data.end_date;
+      if (data.deposit === '') delete data.deposit;
+
+      // Add expenses and deposit to data
+      data.expenses = expenses;
+      if (data.deposit) data.deposit = parseFloat(data.deposit);
 
       try {
-        const savedJob = await database.saveJob(data);
-        const finalJobId = savedJob.id;
-
-        // Save lines
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const lineData = {
-            job_id: finalJobId,
-            type: line.type,
-            description: line.description || '',
-            quantity: 1,
-            unit_price: parseFloat(line.amount) || 0,
-            currency: data.currency,
-            sort_order: i
-          };
-          if (line.id) lineData.id = line.id;
-          await database.saveJobLine(lineData);
-        }
-
-        // Delete removed lines
-        if (jobId) {
-          const existing = await database.getJobLines(jobId);
-          const currentIds = lines.filter(l => l.id).map(l => l.id);
-          for (const old of existing) {
-            if (!currentIds.includes(old.id)) {
-              await database.deleteJobLine(old.id);
-            }
-          }
-        }
-
+        await database.saveJob(data);
         state.jobs = await database.getJobs();
         showView('jobs');
         showToast(t('saveSuccess'));
       } catch (err) {
         console.error('Save failed:', err);
-        showToast('Save failed: ' + err.message, 'error');
+        showToast('Save failed', 'error');
       }
     });
 
-  // Render lines table
-  const renderLines = () => {
-    const hours = parseFloat(document.getElementById('hoursInput')?.value || 0);
-    const rate = parseFloat(document.getElementById('rateInput')?.value || 0);
-    const serviceAmt = hours * rate;
-    const expensesAmt = lines.filter(l => l.type === 'expense').reduce((sum, l) => sum + (parseFloat(l.amount) || 0), 0);
-    const depositsAmt = lines.filter(l => l.type === 'deposit').reduce((sum, l) => sum + (parseFloat(l.amount) || 0), 0);
-    const totalInvoice = serviceAmt + expensesAmt;
-    const amountDue = totalInvoice - depositsAmt;
+    const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
+    const rateInput = document.querySelector('#jobForm input[name="rate"]');
+    const currencySelect = document.querySelector('#jobForm select[name="currency"]');
 
-    document.getElementById('linesContainer').innerHTML = `
-      <label>${t('expenses')} & ${t('deposits')}</label>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:120px">${t('type')}</th>
-              <th>${t('description')}</th>
-              <th style="width:150px">${t('amount')}</th>
-              <th style="width:50px"></th>
-            </tr>
-          </thead>
-          <tbody>
-            ${lines.map((line, idx) => `
-              <tr>
-                <td>
-                  <select class="line-type" data-idx="${idx}" style="width:100%">
-                    <option value="expense" ${line.type === 'expense' ? 'selected' : ''}>${t('expense')}</option>
-                    <option value="deposit" ${line.type === 'deposit' ? 'selected' : ''}>${t('deposit')}</option>
-                  </select>
-                </td>
-                <td><input type="text" class="line-desc" data-idx="${idx}" value="${line.description || ''}" style="width:100%"></td>
-                <td><input type="number" class="line-amt" data-idx="${idx}" value="${line.amount || ''}" step="0.01" min="0" style="width:100%"></td>
-                <td><button type="button" class="action-btn line-del" data-idx="${idx}">🗑️</button></td>
-              </tr>
-            `).join('')}
-            <tr style="border-top:2px solid var(--border)">
-              <td colspan="2" style="text-align:right;padding-top:1rem;font-weight:600">${t('serviceAmount')}:</td>
-              <td style="padding-top:1rem">${formatCurrency(serviceAmt)}</td>
-              <td></td>
-            </tr>
-            <tr>
-              <td colspan="2" style="text-align:right;font-weight:600">${t('expenses')}:</td>
-              <td>${formatCurrency(expensesAmt)}</td>
-              <td></td>
-            </tr>
-            <tr>
-              <td colspan="2" style="text-align:right;font-weight:700;font-size:1.1rem">${t('totalInvoice')}:</td>
-              <td style="font-weight:700;font-size:1.1rem">${formatCurrency(totalInvoice)}</td>
-              <td></td>
-            </tr>
-            <tr>
-              <td colspan="2" style="text-align:right;font-weight:600">${t('deposits')}:</td>
-              <td>${formatCurrency(depositsAmt)}</td>
-              <td></td>
-            </tr>
-            <tr style="background:var(--bg-alt)">
-              <td colspan="2" style="text-align:right;font-weight:700;font-size:1.2rem;padding-top:0.5rem">${t('amountDue')}:</td>
-              <td style="font-weight:700;font-size:1.2rem;color:var(--primary);padding-top:0.5rem">${formatCurrency(amountDue)}</td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <button type="button" id="addLineBtn" class="btn-secondary" style="margin-top:0.5rem">+ ${t('addLine')}</button>
-    `;
+    if (clientSelect && rateInput && currencySelect) {
+      const applyClientDefaults = () => {
+        const client = state.clients.find(c => c.id === clientSelect.value);
+        if (!client) {
+          rateInput.value = '';
+          currencySelect.value = '';
+          return;
+        }
+        rateInput.value = client.rate || '';
+        currencySelect.value = client.currency || 'CZK';
+      };
 
-    // Attach event listeners
-    document.querySelectorAll('.line-type').forEach(el => {
-      el.addEventListener('change', e => {
-        lines[e.target.dataset.idx].type = e.target.value;
-        renderLines();
-      });
-    });
+      clientSelect.addEventListener('change', applyClientDefaults);
 
-    document.querySelectorAll('.line-desc').forEach(el => {
-      el.addEventListener('input', e => {
-        lines[e.target.dataset.idx].description = e.target.value;
-      });
-    });
-
-    document.querySelectorAll('.line-amt').forEach(el => {
-      el.addEventListener('input', e => {
-        lines[e.target.dataset.idx].amount = e.target.value;
-        renderLines();
-      });
-    });
-
-    document.querySelectorAll('.line-del').forEach(el => {
-      el.addEventListener('click', e => {
-        lines.splice(e.target.dataset.idx, 1);
-        renderLines();
-      });
-    });
-
-    document.getElementById('addLineBtn')?.addEventListener('click', () => {
-      lines.push({ id: null, type: 'expense', description: '', amount: '' });
-      renderLines();
-    });
-  };
-
-  // Initial render
-  renderLines();
-
-  // Update totals when hours/rate change
-  document.getElementById('hoursInput')?.addEventListener('input', renderLines);
-  document.getElementById('rateInput')?.addEventListener('input', renderLines);
-
-  // Client change handler
-  const clientSelect = document.getElementById('clientSelect');
-  const rateInput = document.getElementById('rateInput');
-  const currencySelect = document.getElementById('currencySelect');
-
-  if (clientSelect && rateInput && currencySelect) {
-    const applyClientDefaults = () => {
-      const client = state.clients.find(c => c.id === clientSelect.value);
-      if (!client) {
-        rateInput.value = '';
-        currencySelect.value = '';
-        return;
+      if (clientSelect.value && (!rateInput.value || !currencySelect.value)) {
+        applyClientDefaults();
       }
-      rateInput.value = client.rate || '';
-      currencySelect.value = client.currency || 'CZK';
-      renderLines();
-    };
-
-    clientSelect.addEventListener('change', applyClientDefaults);
-
-    if (clientSelect.value && (!rateInput.value || !currencySelect.value)) {
-      applyClientDefaults();
     }
+
+    // Initial calculation
+    setTimeout(updateJobCalculations, 100);
   }
-}
+
+
+
+
+// Expense management functions
+window.addNewExpense = function() {
+  const container = document.getElementById('expensesContainer');
+  const existingRows = container.querySelectorAll('.expense-row');
+  const newIndex = existingRows.length;
+
+  const newRow = document.createElement('div');
+  newRow.className = 'expense-row';
+  newRow.dataset.index = newIndex;
+  newRow.innerHTML = `
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+      <input type="text" name="expense_description_${newIndex}" placeholder="${t('description')}" style="flex: 2;" onchange="updateJobCalculations()">
+      <input type="number" name="expense_amount_${newIndex}" placeholder="${t('amount')}" step="0.01" min="0" style="flex: 1;" onchange="updateJobCalculations()">
+      <button type="button" class="btn-danger" onclick="removeExpense(${newIndex})">×</button>
+    </div>
+  `;
+
+  container.appendChild(newRow);
+};
+
+window.removeExpense = function(index) {
+  const row = document.querySelector(`.expense-row[data-index="${index}"]`);
+  if (row) {
+    row.remove();
+    updateJobCalculations();
+  }
+};
+
+window.updateJobCalculations = function() {
+  const form = document.getElementById('jobForm');
+  if (!form) return;
+
+  const hours = parseFloat(form.querySelector('[name="hours"]')?.value) || 0;
+  const rate = parseFloat(form.querySelector('[name="rate"]')?.value) || 0;
+  const deposit = parseFloat(form.querySelector('[name="deposit"]')?.value) || 0;
+
+  // Calculate job subtotal
+  const jobSubtotal = hours * rate;
+
+  // Calculate total expenses
+  let totalExpenses = 0;
+  const expenseRows = form.querySelectorAll('.expense-row');
+  expenseRows.forEach(row => {
+    const amountInput = row.querySelector('input[type="number"]');
+    if (amountInput) {
+      totalExpenses += parseFloat(amountInput.value) || 0;
+    }
+  });
+
+  // Calculate totals
+  const totalInvoice = jobSubtotal + totalExpenses;
+  const totalDue = totalInvoice - deposit;
+
+  // Update display
+  const jobSubtotalEl = document.getElementById('jobSubtotal');
+  const totalExpensesEl = document.getElementById('totalExpenses');
+  const totalInvoiceEl = document.getElementById('totalInvoice');
+  const totalDueEl = document.getElementById('totalDue');
+
+  if (jobSubtotalEl) jobSubtotalEl.textContent = formatCurrency(jobSubtotal);
+  if (totalExpensesEl) totalExpensesEl.textContent = formatCurrency(totalExpenses);
+  if (totalInvoiceEl) totalInvoiceEl.textContent = formatCurrency(totalInvoice);
+  if (totalDueEl) totalDueEl.textContent = formatCurrency(totalDue);
+};
 
 
 function showTimesheetForm(timesheetId = null) {
@@ -1095,17 +1064,7 @@ async function createInvoiceFromJob(jobId) {
   const hours = parseFloat(job.hours) || 0;
   const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
   const currency = job.currency || client.currency || 'CZK';
-
-  // Get expense/deposit lines
-  const lines = await database.getJobLines(jobId);
-  const expenses = lines.filter(l => l.type === 'expense');
-  const deposits = lines.filter(l => l.type === 'deposit');
-
-  const serviceAmt = hours * rate;
-  const expensesAmt = expenses.reduce((sum, e) => sum + (parseFloat(e.unit_price) || 0), 0);
-  const depositsAmt = deposits.reduce((sum, d) => sum + (parseFloat(d.unit_price) || 0), 0);
-  const totalInvoice = serviceAmt + expensesAmt;
-  const amountDue = totalInvoice - depositsAmt;
+  const jobSubtotal = hours * rate;
 
   let dateRange = '';
   if (job.start_date && job.end_date) {
@@ -1120,33 +1079,39 @@ async function createInvoiceFromJob(jobId) {
   if (dateRange) descParts.push(dateRange);
   const fullDescription = descParts.join('\n');
 
-  // Build items array for invoice
+  // Prepare invoice items - start with main job item
   const items = [{
     description: fullDescription,
     hours: hours,
-    rate: rate,
-    type: 'service'
+    rate: rate
   }];
 
-  // Add expenses
-  expenses.forEach(e => {
-    items.push({
-      description: e.description,
-      hours: 1,
-      rate: parseFloat(e.unit_price) || 0,
-      type: 'expense'
-    });
+  // Add expenses as separate line items
+  const expenses = job.expenses || [];
+  expenses.forEach(expense => {
+    if (expense.description && expense.amount > 0) {
+      items.push({
+        description: expense.description,
+        hours: 1,
+        rate: expense.amount
+      });
+    }
   });
 
-  // Add deposits as negative amounts
-  deposits.forEach(d => {
+  // Calculate totals
+  const totalExpenses = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+  const subtotalBeforeDeposit = jobSubtotal + totalExpenses;
+  const deposit = parseFloat(job.deposit) || 0;
+  const finalTotal = subtotalBeforeDeposit - deposit;
+
+  // Add deposit as negative line item if there is one
+  if (deposit > 0) {
     items.push({
-      description: d.description,
+      description: `${t('deposit')} / Deposit`,
       hours: 1,
-      rate: -(parseFloat(d.unit_price) || 0),
-      type: 'deposit'
+      rate: -deposit
     });
-  });
+  }
 
   // Generate invoice ID in format YYMMDD-II
   const now = new Date();
@@ -1169,10 +1134,8 @@ async function createInvoiceFromJob(jobId) {
   const invoiceData = {
     id: invoiceId,
     client_id: job.client_id,
-    job_id: jobId,
     items: JSON.stringify(items),
-    total: amountDue,
-    currency: currency,
+    total: finalTotal,
     status: 'unpaid',
     due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   };
@@ -1484,26 +1447,20 @@ window.viewInvoice = async (id) => {
         <thead>
           <tr>
             <th>Položka / Description</th>
-            <th class="right">Množství / Quantity</th>
-            <th class="right">Sazba / Rate</th>
+            <th class="right">Počet hodin / Hours</th>
+            <th class="right">Sazba/hod. / Rate</th>
             <th class="right">Částka / Amount</th>
           </tr>
         </thead>
         <tbody>
-          ${items.map(item => {
-            const amount = (item.hours || 1) * (item.rate || 0);
-            let typeLabel = '';
-            if (item.type === 'expense') typeLabel = ' <em>[Výdaj / Expense]</em>';
-            if (item.type === 'deposit') typeLabel = ' <em>[Záloha / Deposit]</em>';
-
-            return `
+          ${items.map(item => `
             <tr>
-              <td>${item.description}${typeLabel}</td>
-              <td class="right">${item.type === 'service' ? (item.hours || 0).toFixed(2) : '1'}</td>
-              <td class="right">${formatCurrency(Math.abs(item.rate) || 0)} ${client?.currency || 'CZK'}</td>
-              <td class="right">${formatCurrency(amount)} ${client?.currency || 'CZK'}</td>
+              <td>${item.description}</td>
+              <td class="right">${(item.hours || 0).toFixed(2)}</td>
+              <td class="right">${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}</td>
+              <td class="right">${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
             </tr>
-          `}).join('')}
+          `).join('')}
         </tbody>
       </table>
 
@@ -1599,8 +1556,8 @@ window.downloadInvoice = async (id) => {
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
   doc.text('Položka / Description', 20, y);
-  doc.text('Množství / Qty', 120, y, { align: 'right' });
-  doc.text('Sazba / Rate', 150, y, { align: 'right' });
+  doc.text('Počet hodin / Hours', 120, y, { align: 'right' });
+  doc.text('Sazba/hod. / Rate', 150, y, { align: 'right' });
   doc.text('Částka / Amount', 190, y, { align: 'right' });
 
   y += 2;
@@ -1613,18 +1570,12 @@ window.downloadInvoice = async (id) => {
     if (y > 270) { doc.addPage(); y = 20; }
 
     const descWidth = 90;
-    let description = item.description;
-    if (item.type === 'expense') description += ' [Výdaj/Expense]';
-    if (item.type === 'deposit') description += ' [Záloha/Deposit]';
-    const descLines = doc.splitTextToSize(description, descWidth);
-
-    const amount = (item.hours || 1) * (item.rate || 0);
-    const quantity = item.type === 'service' ? (item.hours || 0).toFixed(2) : '1';
+    const descLines = doc.splitTextToSize(item.description, descWidth);
 
     doc.text(descLines, 20, y);
-    doc.text(quantity, 120, y, { align: 'right' });
-    doc.text(`${formatCurrency(Math.abs(item.rate) || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
-    doc.text(`${formatCurrency(amount)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+    doc.text((item.hours || 0).toFixed(2), 120, y, { align: 'right' });
+    doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
+    doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
     y += Math.max(7, descLines.length * 5);
   });
