@@ -169,9 +169,6 @@ class Database {
   }
 
   async create(table, record) {
-    // IMPORTANT: Ensure the database accepts negative amounts for deposits
-    // The `invoices` table will store positive `total` (Service+Expenses) and
-    // potentially negative `amount_due` if deposits exceed the total.
     const data = await this.request(table, {
       method: 'POST',
       body: {
