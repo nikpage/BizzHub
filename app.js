@@ -884,7 +884,6 @@ async function showJobForm(jobId = null) {
           description: line.description || '',
           quantity: parseFloat(line.quantity) || 0,
           unit_price: parseFloat(line.unit_price) || 0,
-          total: parseFloat(line.total) || 0,
           currency: jobCurrency,
           sort_order: i
         };
