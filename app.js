@@ -860,12 +860,6 @@ async function showJobForm(jobId = null) {
     if (data.start_date === '') delete data.start_date;
     if (data.end_date === '') delete data.end_date;
 
-    // Validate at least one line exists
-    if (jobLines.length === 0) {
-      showToast('At least one line item is required', 'error');
-      return;
-    }
-
     try {
       // Save job first
       const savedJob = await database.saveJob(data);
