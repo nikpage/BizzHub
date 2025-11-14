@@ -863,7 +863,11 @@ async function showJobForm(jobId = null) {
     try {
       // Save job first
       const savedJob = await database.saveJob(data);
-      const finalJobId = savedJob.id || data.id;
+      const finalJobId = savedJob.id;
+
+      if (!finalJobId) {
+        throw new Error('Failed to get job ID after save');
+      }
 
       // Get client for currency/rate
       const client = state.clients.find(c => c.id === data.client_id);
@@ -886,7 +890,9 @@ async function showJobForm(jobId = null) {
           lineData.id = line.id;
         }
 
-        await database.saveJobLine(lineData);
+        console.log('Saving line:', lineData);
+        const savedLine = await database.saveJobLine(lineData);
+        console.log('Saved line result:', savedLine);
       }
 
       // Delete lines that were removed
