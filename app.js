@@ -740,6 +740,8 @@ async function showJobForm(jobId = null) {
   }
 
   const renderLinesTable = () => {
+    const grandTotal = jobLines.reduce((sum, line) => sum + (line.total || 0), 0);
+
     return `
       <div class="form-group full-width">
         <label>${t('itemizedLines')}</label>
@@ -757,33 +759,45 @@ async function showJobForm(jobId = null) {
               </tr>
             </thead>
             <tbody id="jobLinesBody">
-              ${jobLines.map((line, idx) => `
-                <tr data-line-index="${idx}">
-                  <td>${idx + 1}</td>
-                  <td>
-                    <select class="line-type" data-line-index="${idx}">
-                      <option value="service" ${line.type === 'service' ? 'selected' : ''}>${t('service')}</option>
-                      <option value="expense" ${line.type === 'expense' ? 'selected' : ''}>${t('expense')}</option>
-                      <option value="deposit" ${line.type === 'deposit' ? 'selected' : ''}>${t('deposit')}</option>
-                    </select>
-                  </td>
-                  <td>
-                    <input type="text" class="line-description" data-line-index="${idx}" value="${line.description || ''}" style="width: 100%">
-                  </td>
-                  <td>
-                    <input type="number" class="line-quantity" data-line-index="${idx}" value="${line.quantity || ''}" step="0.01" style="width: 100%">
-                  </td>
-                  <td>
-                    <input type="number" class="line-unit-price" data-line-index="${idx}" value="${line.unit_price || ''}" step="0.01" style="width: 100%">
-                  </td>
-                  <td>
-                    <span class="line-total" data-line-index="${idx}">${formatCurrency(line.total || 0)}</span>
-                  </td>
-                  <td>
-                    <button type="button" class="action-btn delete-line-btn" data-line-index="${idx}">🗑️</button>
-                  </td>
-                </tr>
-              `).join('')}
+              ${jobLines.map((line, idx) => {
+                const isExpenseOrDeposit = line.type === 'expense' || line.type === 'deposit';
+                return `
+                  <tr data-line-index="${idx}">
+                    <td>${idx + 1}</td>
+                    <td>
+                      <select class="line-type" data-line-index="${idx}">
+                        <option value="service" ${line.type === 'service' ? 'selected' : ''}>${t('service')}</option>
+                        <option value="expense" ${line.type === 'expense' ? 'selected' : ''}>${t('expense')}</option>
+                        <option value="deposit" ${line.type === 'deposit' ? 'selected' : ''}>${t('deposit')}</option>
+                      </select>
+                    </td>
+                    <td>
+                      <input type="text" class="line-description" data-line-index="${idx}" value="${line.description || ''}" style="width: 100%">
+                    </td>
+                    <td>
+                      ${isExpenseOrDeposit ? `
+                        <input type="number" class="line-quantity" data-line-index="${idx}" value="1" readonly style="width: 100%; background: var(--bg-alt)">
+                      ` : `
+                        <input type="number" class="line-quantity" data-line-index="${idx}" value="${line.quantity || ''}" step="0.01" style="width: 100%">
+                      `}
+                    </td>
+                    <td>
+                      <input type="number" class="line-unit-price" data-line-index="${idx}" value="${line.unit_price || ''}" step="0.01" style="width: 100%" placeholder="${isExpenseOrDeposit ? 'Amount' : 'Rate'}">
+                    </td>
+                    <td>
+                      <span class="line-total" data-line-index="${idx}">${formatCurrency(line.total || 0)}</span>
+                    </td>
+                    <td>
+                      <button type="button" class="action-btn delete-line-btn" data-line-index="${idx}">🗑️</button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+              <tr style="border-top: 2px solid var(--border); font-weight: 600">
+                <td colspan="5" style="text-align: right; padding-top: 1rem">${t('total')}:</td>
+                <td id="grandTotal" style="padding-top: 1rem">${formatCurrency(grandTotal)}</td>
+                <td></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -926,19 +940,39 @@ async function showJobForm(jobId = null) {
 
   // Calculate line total helper
   const updateLineTotal = (idx) => {
+    const typeSelect = document.querySelector(`.line-type[data-line-index="${idx}"]`);
     const qtyInput = document.querySelector(`.line-quantity[data-line-index="${idx}"]`);
     const priceInput = document.querySelector(`.line-unit-price[data-line-index="${idx}"]`);
     const totalSpan = document.querySelector(`.line-total[data-line-index="${idx}"]`);
 
-    const qty = parseFloat(qtyInput.value) || 0;
+    const lineType = typeSelect.value;
+    let qty = parseFloat(qtyInput.value) || 0;
     const price = parseFloat(priceInput.value) || 0;
-    const total = qty * price;
+
+    // For expense/deposit, quantity is always 1
+    if (lineType === 'expense' || lineType === 'deposit') {
+      qty = 1;
+      qtyInput.value = 1;
+    }
+
+    // Calculate total - deposits are negative
+    let total = qty * price;
+    if (lineType === 'deposit') {
+      total = -Math.abs(total);
+    }
 
     jobLines[idx].quantity = qty;
     jobLines[idx].unit_price = price;
     jobLines[idx].total = total;
 
     totalSpan.textContent = formatCurrency(total);
+
+    // Update grand total
+    const grandTotal = jobLines.reduce((sum, line) => sum + (line.total || 0), 0);
+    const grandTotalEl = document.getElementById('grandTotal');
+    if (grandTotalEl) {
+      grandTotalEl.textContent = formatCurrency(grandTotal);
+    }
   };
 
   // Handle line type change
@@ -946,15 +980,31 @@ async function showJobForm(jobId = null) {
     select.addEventListener('change', (e) => {
       jobLines[idx].type = e.target.value;
 
-      // If changing to service, auto-fill rate from client
-      if (e.target.value === 'service' && clientSelect.value) {
-        const client = state.clients.find(c => c.id === clientSelect.value);
-        const priceInput = document.querySelector(`.line-unit-price[data-line-index="${idx}"]`);
-        if (client && priceInput && !priceInput.value) {
-          priceInput.value = client.rate || '';
-          updateLineTotal(idx);
+      const qtyInput = document.querySelector(`.line-quantity[data-line-index="${idx}"]`);
+      const priceInput = document.querySelector(`.line-unit-price[data-line-index="${idx}"]`);
+
+      // If changing to expense/deposit, lock quantity to 1
+      if (e.target.value === 'expense' || e.target.value === 'deposit') {
+        qtyInput.value = 1;
+        qtyInput.readOnly = true;
+        qtyInput.style.background = 'var(--bg-alt)';
+        priceInput.placeholder = 'Amount';
+      } else {
+        // Service type - unlock quantity
+        qtyInput.readOnly = false;
+        qtyInput.style.background = 'var(--bg)';
+        priceInput.placeholder = 'Rate';
+
+        // Auto-fill rate from client
+        if (clientSelect.value) {
+          const client = state.clients.find(c => c.id === clientSelect.value);
+          if (client && !priceInput.value) {
+            priceInput.value = client.rate || '';
+          }
         }
       }
+
+      updateLineTotal(idx);
     });
   });
 
@@ -1019,14 +1069,32 @@ async function showJobForm(jobId = null) {
     document.querySelectorAll('.line-type').forEach((select, idx) => {
       select.addEventListener('change', (e) => {
         jobLines[idx].type = e.target.value;
-        if (e.target.value === 'service' && clientSelect.value) {
-          const client = state.clients.find(c => c.id === clientSelect.value);
-          const priceInput = document.querySelector(`.line-unit-price[data-line-index="${idx}"]`);
-          if (client && priceInput && !priceInput.value) {
-            priceInput.value = client.rate || '';
-            updateLineTotal(idx);
+
+        const qtyInput = document.querySelector(`.line-quantity[data-line-index="${idx}"]`);
+        const priceInput = document.querySelector(`.line-unit-price[data-line-index="${idx}"]`);
+
+        // If changing to expense/deposit, lock quantity to 1
+        if (e.target.value === 'expense' || e.target.value === 'deposit') {
+          qtyInput.value = 1;
+          qtyInput.readOnly = true;
+          qtyInput.style.background = 'var(--bg-alt)';
+          priceInput.placeholder = 'Amount';
+        } else {
+          // Service type - unlock quantity
+          qtyInput.readOnly = false;
+          qtyInput.style.background = 'var(--bg)';
+          priceInput.placeholder = 'Rate';
+
+          // Auto-fill rate from client
+          if (clientSelect.value) {
+            const client = state.clients.find(c => c.id === clientSelect.value);
+            if (client && !priceInput.value) {
+              priceInput.value = client.rate || '';
+            }
           }
         }
+
+        updateLineTotal(idx);
       });
     });
 
