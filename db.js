@@ -207,6 +207,13 @@ class Database {
   }
 
   async hardDelete(table, id) {
+    // If deleting a job, also delete all its job_lines
+    if (table === 'jobs') {
+      await this.request(`job_lines?job_id=eq.${id}&user_id=eq.${this.userId}`, {
+        method: 'DELETE',
+      });
+    }
+
     await this.request(`${table}?id=eq.${id}&user_id=eq.${this.userId}`, {
       method: 'DELETE',
     });
@@ -271,6 +278,25 @@ class Database {
 
   async deleteJob(id) {
     return this.softDelete('jobs', id);
+  }
+
+  async getJobLines(jobId) {
+    return this.request(`job_lines?job_id=eq.${jobId}&user_id=eq.${this.userId}&order=sort_order.asc&select=*`);
+  }
+
+  async saveJobLine(line) {
+    const saved = line.id
+      ? await this.update('job_lines', line.id, line)
+      : await this.create('job_lines', line);
+    return saved;
+  }
+
+  async deleteJobLine(id) {
+    await this.request(`job_lines?id=eq.${id}&user_id=eq.${this.userId}`, {
+      method: 'DELETE',
+    });
+    this.clearCache('job_lines');
+    return true;
   }
 
   async getTimesheets() {

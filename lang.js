@@ -66,6 +66,16 @@ export const LANG = {
     startDate: 'Start Date',
     endDate: 'End Date',
     hours: 'Hours',
+    itemizedLines: 'Itemized Lines',
+    lineType: 'Type',
+    lineDescription: 'Description',
+    quantity: 'Qty',
+    unitPrice: 'Unit Price',
+    lineTotal: 'Total',
+    addLine: 'Add Line',
+    service: 'Service',
+    expense: 'Expense',
+    deposit: 'Deposit',
 
     // Work Logs
     addLog: 'Add Log',
@@ -192,6 +202,16 @@ export const LANG = {
     startDate: 'Datum zahájení',
     endDate: 'Datum ukončení',
     hours: 'Hodiny',
+    itemizedLines: 'Položky',
+    lineType: 'Typ',
+    lineDescription: 'Popis',
+    quantity: 'Množství',
+    unitPrice: 'Jedn. cena',
+    lineTotal: 'Celkem',
+    addLine: 'Přidat položku',
+    service: 'Služba',
+    expense: 'Výdaj',
+    deposit: 'Záloha',
 
     // Work Logs
     addLog: 'Přidat záznam',
