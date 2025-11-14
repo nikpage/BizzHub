@@ -1713,7 +1713,7 @@ window.downloadInvoice = async (id) => {
 
 window.deleteInvoice = async (id) => {
   showCustomModal(t('confirmDeleteTitle'), t('confirmDeleteBody'), 'danger', async () => {
-    await database.deleteInvoice(id);
+    await database.softDelete('invoices', id);
     await loadData();
     showView('dashboard');
     showToast(t('deleteSuccess'));

@@ -138,7 +138,9 @@ export const LANG = {
     confirmDeleteForever: 'This will permanently delete the item. Continue?',
     noData: 'No data available',
     loading: 'Loading...',
-    confirmRestore: 'Are you sure you want to replace all current data with the backup file?'
+    confirmRestore: 'Are you sure you want to replace all current data with the backup file?',
+    confirmDeleteTitle: 'Confirm Deletion',
+    confirmDeleteBody: 'Are you sure you want to move this item to Trash?',
   },
 
   cs: {
@@ -278,7 +280,9 @@ export const LANG = {
     confirmDeleteForever: 'Tímto položku trvale smažete. Pokračovat?',
     noData: 'Žádná data k zobrazení',
     loading: 'Načítání...',
-    confirmRestore: 'Opravdu chcete nahradit všechna aktuální data záložním souborem?'
+    confirmRestore: 'Opravdu chcete nahradit všechna aktuální data záložním souborem?',
+    confirmDeleteTitle: 'Potvrďte smazání',
+    confirmDeleteBody: 'Opravdu chcete tuto položku přesunout do Koše?',
   }
 };
 
