@@ -8,7 +8,7 @@ const state = {
   clients: [],
   jobs: [],
   timesheets: [],
-  showBilledJobs: true,
+  showBilledJobs: false,
   invoices: [],
   profile: null
 };
@@ -603,24 +603,6 @@ function showClientForm(clientId = null) {
   const client = clientId ? state.clients.find(c => c.id === clientId) : {};
 
   showModal(clientId ? t('editClient') : t('addClient'), `
-    setTimeout(() => {
-      const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
-      const rateInput = document.querySelector('#jobForm input[name="rate"]');
-      const currencySelect = document.querySelector('#jobForm select[name="currency"]');
-
-      if (clientSelect && rateInput && currencySelect) {
-        clientSelect.addEventListener('change', () => {
-          const client = state.clients.find(c => c.id === clientSelect.value);
-          if (client) {
-            rateInput.value = client.rate || '';
-            currencySelect.value = client.currency || 'CZK';
-          }
-        });
-      }
-    }, 0);
-
-
-
     <form id="clientForm">
       <div class="form-grid">
         <div class="form-group">
@@ -687,23 +669,12 @@ function showClientForm(clientId = null) {
       <input type="hidden" name="id" value="${client.id || ''}">
     </form>
   `, async () => {
+    const form = document.getElementById('clientForm');
+    const formData = new FormData(form);
     const data = Object.fromEntries(formData);
 
-    // inherit client rate/currency if blank
-    if (data.client_id) {
-      const client = state.clients.find(c => c.id === data.client_id);
-      if (client) {
-        if (!data.rate || data.rate === '') data.rate = client.rate || 0;
-        if (!data.currency || data.currency === '') data.currency = client.currency || 'USD';
-      }
-    }
-
     if (!data.id) delete data.id;
-    if (data.client_id === '') delete data.client_id;
     if (data.rate === '') delete data.rate;
-    if (data.hours === '') delete data.hours;
-    if (data.start_date === '') delete data.start_date;
-    if (data.end_date === '') delete data.end_date;
 
     console.log('Saving client data:', JSON.stringify(data, null, 2));
     try {
