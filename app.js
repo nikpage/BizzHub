@@ -828,18 +828,14 @@ function showJobForm(jobId = null) {
           <label>${t('expenses')}</label>
           <div id="expensesContainer">
             ${expenses.map((exp, i) => `
-              <div class="expense-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: end;">
-                <div style="flex: 2;">
-                  <input type="text" name="expense_description_${i}" value="${exp.description || ''}" placeholder="${t('expenseDescription')}" onchange="updateJobCalculations()">
-                </div>
-                <div style="flex: 1;">
-                  <input type="number" name="expense_amount_${i}" value="${exp.amount || ''}" placeholder="${t('expenseAmount')}" step="0.01" onchange="updateJobCalculations()">
-                </div>
-                ${i > 0 ? '<button type="button" onclick="removeExpense(this)" style="background: red; color: white; border: none; padding: 5px;">×</button>' : ''}
+              <div class="expense-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                <input type="text" name="expense_description_${i}" value="${exp.description || ''}" placeholder="${t('expenseDescription')}" onchange="updateJobCalculations()" style="flex: 2;">
+                <input type="number" name="expense_amount_${i}" value="${exp.amount || ''}" placeholder="${t('expenseAmount')}" step="0.01" onchange="updateJobCalculations()" style="flex: 1;">
+                ${i > 0 ? '<button type="button" onclick="removeExpense(this)" style="background: red; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">×</button>' : ''}
               </div>
             `).join('')}
           </div>
-          <button type="button" id="addExpenseBtn" style="margin-top: 10px; background: #007bff; color: white; border: none; padding: 8px 16px; cursor: pointer;">${t('addExpense')}</button>
+          <button type="button" id="addExpenseBtn" style="margin-top: 10px; background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">${t('addExpense')}</button>
         </div>
 
         <div class="form-group">
@@ -899,6 +895,10 @@ function showJobForm(jobId = null) {
       if (data.deposit === '') delete data.deposit;
 
       try {
+        // Ensure billed defaults to false for new jobs
+        if (!data.id) {
+          data.billed = false;
+        }
         await database.saveJob(data);
         state.jobs = await database.getJobs();
         showView('jobs');
@@ -939,15 +939,11 @@ function showJobForm(jobId = null) {
       const newIndex = container.children.length;
       const newExpense = document.createElement('div');
       newExpense.className = 'expense-row';
-      newExpense.style = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: end;';
+      newExpense.style = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
       newExpense.innerHTML = `
-        <div style="flex: 2;">
-          <input type="text" name="expense_description_${newIndex}" placeholder="${t('expenseDescription')}" onchange="updateJobCalculations()">
-        </div>
-        <div style="flex: 1;">
-          <input type="number" name="expense_amount_${newIndex}" placeholder="${t('expenseAmount')}" step="0.01" onchange="updateJobCalculations()">
-        </div>
-        <button type="button" onclick="removeExpense(this)" style="background: red; color: white; border: none; padding: 5px;">×</button>
+        <input type="text" name="expense_description_${newIndex}" placeholder="${t('expenseDescription')}" onchange="updateJobCalculations()" style="flex: 2;">
+        <input type="number" name="expense_amount_${newIndex}" placeholder="${t('expenseAmount')}" step="0.01" onchange="updateJobCalculations()" style="flex: 1;">
+        <button type="button" onclick="removeExpense(this)" style="background: red; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">×</button>
       `;
       container.appendChild(newExpense);
     });
