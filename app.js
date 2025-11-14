@@ -1247,7 +1247,10 @@ async function createInvoiceFromJob(jobId) {
   // Get job lines
   const jobLines = await database.getJobLines(jobId);
 
-  if (jobLines.length === 0) {
+  console.log('Job ID:', jobId);
+  console.log('Job Lines:', jobLines);
+
+  if (!jobLines || jobLines.length === 0) {
     showToast('Cannot create invoice: job has no line items', 'error');
     return;
   }
