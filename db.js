@@ -169,16 +169,23 @@ class Database {
   }
 
   async create(table, record) {
+    const baseRecord = {
+      ...record,
+      user_id: this.userId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only add deleted field for tables that have it
+    if (['clients','jobs','timesheets','invoices','business'].includes(table)) {
+      baseRecord.deleted = false;
+    }
+
     const data = await this.request(table, {
       method: 'POST',
-      body: {
-        ...record,
-        user_id: this.userId,
-        deleted: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
+      body: baseRecord
     });
+
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error(`Failed to create ${table} record - database returned no data`);
     }
