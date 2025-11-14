@@ -245,11 +245,15 @@ function renderDashboard(container) {
               <td title="${description}">${truncatedDesc || '-'}</td>
               <td>${t('invoice')}</td>
               <td>${formatCurrency(inv.total || 0)} ${currency}</td>
-              <td>${inv.status === 'paid' ? '<span class="status-paid">'+t('paid')+'</span>' : '<span class="status-unpaid">'+t('unpaid')+'</span>'}</td>
               <td>
-                <button class="action-btn" onclick="window.showInvoice('${inv.id}')" title="${t('viewPdf')}">👁️</button>
-                <button class="action-btn" onclick="window.downloadInvoice('${inv.id}')" title="${t('downloadPdf')}">📄</button>
-                ${inv.status === 'unpaid' ? `<button class="action-btn" onclick="window.markInvoicePaid('${inv.id}')" title="${t('markPaid')}">✅</button>` : ''}
+                <span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}">
+                  ${t(inv.status || 'pending')}
+                </span>
+              </td>
+              <td>
+                <button class="action-btn" onclick="window.viewInvoice('${inv.id}')" title="${t('viewPdf')}">👁️</button>
+                <button class="action-btn" onclick="window.downloadInvoice('${inv.id}')" title="${t('downloadPdf')}">⬇️</button>
+                <button class="action-btn" onclick="window.markInvoicePaid('${inv.id}')" title="${t('markPaid')}">✓</button>
                 <button class="action-btn" onclick="window.deleteInvoice('${inv.id}')" title="${t('delete')}">🗑️</button>
               </td>
             </tr>
@@ -271,52 +275,60 @@ function renderClients(container) {
       <h2>${t('clients')}</h2>
       <button id="addClient" class="btn-primary">${t('addClient')}</button>
     </div>
-
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>${t('clientName')}</th>
-            <th>${t('email')}</th>
-            <th>${t('rate')}</th>
-            <th>${t('currency')}</th>
-            <th>${t('actions')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${state.clients.length === 0 ? `
-            <tr><td colspan="5" class="text-center text-muted">${t('noData')}</td></tr>
-          ` : state.clients.map(client => `
-            <tr>
-              <td>${client.name}</td>
-              <td>${client.email || '-'}</td>
-              <td>${client.rate || '-'}</td>
-              <td>${client.currency || '-'}</td>
-              <td>
-                <button class="action-btn" onclick="window.editClient('${client.id}')" title="${t('edit')}">✏️</button>
-                <button class="action-btn" onclick="window.deleteClient('${client.id}')" title="${t('delete')}">🗑️</button>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+    <div class="cards-grid">
+      ${state.clients.length === 0 ? `
+        <div class="empty-state">
+          <div class="empty-state-icon">👥</div>
+          <p>${t('noData')}</p>
+        </div>
+      ` : state.clients.map(client => `
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">${client.name || 'Unnamed'}</div>
+            <div class="card-actions">
+              <button class="action-btn" onclick="window.editClient('${client.id}')" title="${t('edit')}">✏️</button>
+              <button class="action-btn" onclick="window.deleteClient('${client.id}')" title="${t('delete')}">🗑️</button>
+            </div>
+          </div>
+          <div class="card-info">
+            <div class="card-info-item">
+              <span class="card-info-label">${t('email')}:</span>
+              <span>${client.invoice_email || '-'}</span>
+            </div>
+            <div class="card-info-item">
+              <span class="card-info-label">${t('address')}:</span>
+              <span>${client.address || '-'}</span>
+            </div>
+            <div class="card-info-item">
+              <span class="card-info-label">${t('rate')}:</span>
+              <span>${client.rate || '0'} ${client.currency || 'USD'} / ${t(client.rate_type || 'hourly')}</span>
+            </div>
+            ${client.id_number_1 ? `
+              <div class="card-info-item">
+                <span class="card-info-label">${client.id_label_1 || 'ID'}:</span>
+                <span>${client.id_number_1}</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `).join('')}
     </div>
   `;
-
-  document.getElementById('addClient').addEventListener('click', () => showClientForm());
+  document.getElementById('addClient')?.addEventListener('click', () => showClientForm());
 }
-
 // Jobs View
 function renderJobs(container) {
-  const filteredJobs = state.showBilledJobs ? state.jobs : state.jobs.filter(job => !job.billed);
+  const displayJobs = state.showBilledJobs
+  ? state.jobs.filter(j => !j.deleted)
+  : state.jobs.filter(j => !j.billed && !j.deleted);
 
   container.innerHTML = `
     <div class="flex-between mb-3">
       <h2>${t('jobs')}</h2>
-      <div>
-        <label>
-          <input type="checkbox" id="showBilledToggle" ${state.showBilledJobs ? 'checked' : ''}>
-          Show billed jobs
+      <div class="flex gap-1">
+        <label class="checkbox-group">
+          <input type="checkbox" id="showBilledJobs" ${state.showBilledJobs ? 'checked' : ''}>
+          <span>Show Billed Jobs</span>
         </label>
         <button id="addJob" class="btn-primary">${t('addJob')}</button>
       </div>
@@ -332,30 +344,30 @@ function renderJobs(container) {
             <th>${t('endDate')}</th>
             <th>${t('hours')}</th>
             <th>${t('rate')}</th>
-            <th>${t('status')}</th>
+            <th>Status</th>
             <th>${t('actions')}</th>
           </tr>
         </thead>
         <tbody>
-          ${filteredJobs.length === 0 ? `
+          ${displayJobs.length === 0 ? `
             <tr><td colspan="8" class="text-center text-muted">${t('noData')}</td></tr>
-          ` : filteredJobs.map(job => {
+          ` : displayJobs.map(job => {
             const client = state.clients.find(c => c.id === job.client_id);
             return `
-            <tr>
-              <td>${job.name}</td>
-              <td>${client?.name || '-'}</td>
-              <td>${formatDate(job.start_date)}</td>
-              <td>${formatDate(job.end_date)}</td>
-              <td>${job.hours || 0}</td>
-              <td>${job.rate || client?.rate || 0} ${job.currency || client?.currency || 'USD'}</td>
-              <td>${job.billed ? '<span class="badge badge-success">Billed ✓</span>' : '<span class="badge badge-warning">Pending</span>'}</td>
-              <td>
-                ${!job.billed ? `<button class="action-btn" onclick="window.createInvoiceFromJob('${job.id}')" title="Create Invoice">💰</button>` : ''}
-                <button class="action-btn" onclick="window.editJob('${job.id}')" title="${t('edit')}">✏️</button>
-                <button class="action-btn" onclick="window.deleteJob('${job.id}')" title="${t('delete')}">🗑️</button>
-              </td>
-            </tr>
+              <tr>
+                <td>${job.name || '-'}</td>
+                <td>${client?.name || '-'}</td>
+                <td>${formatDate(job.start_date)}</td>
+                <td>${formatDate(job.end_date)}</td>
+                <td>${job.hours || 0}</td>
+                <td>${job.rate || client?.rate || 0} ${job.currency || client?.currency || 'USD'}</td>
+                <td>${job.billed ? '<span class="badge badge-success">Billed ✓</span>' : '<span class="badge badge-warning">Pending</span>'}</td>
+                <td>
+                  ${!job.billed ? `<button class="action-btn" onclick="window.createInvoiceFromJob('${job.id}')" title="Create Invoice">💰</button>` : ''}
+                  <button class="action-btn" onclick="window.editJob('${job.id}')" title="${t('edit')}">✏️</button>
+                  <button class="action-btn" onclick="window.deleteJob('${job.id}')" title="${t('delete')}">🗑️</button>
+                </td>
+              </tr>
             `;
           }).join('')}
         </tbody>
@@ -363,41 +375,39 @@ function renderJobs(container) {
     </div>
   `;
 
-  document.getElementById('addJob').addEventListener('click', () => showJobForm());
-  document.getElementById('showBilledToggle').addEventListener('change', (e) => {
+  document.getElementById('addJob')?.addEventListener('click', () => showJobForm());
+  document.getElementById('showBilledJobs')?.addEventListener('change', (e) => {
     state.showBilledJobs = e.target.checked;
-    renderJobs(container);
+    showView('jobs');
   });
 }
 
 // Work Logs View
 function renderWorkLogs(container) {
   container.innerHTML = `
-    <div class="flex-between mb-3">
-      <h2>${t('worklogs')}</h2>
-      <button id="addTimesheet" class="btn-primary">${t('addLog')}</button>
-    </div>
-
-    <div class="bg-card p-4 mb-4 rounded">
+    <div class="form-container mb-3">
       <h3>${t('generateInvoice')}</h3>
-      <div class="form-row">
+      <div class="form-grid">
         <div class="form-group">
           <label>${t('selectClient')}</label>
           <select id="invoiceClient">
             <option value="">${t('selectClient')}</option>
-            ${state.clients.map(c => `
-              <option value="${c.id}">${c.name}</option>
-            `).join('')}
+            ${state.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
           <label>${t('selectMonth')}</label>
-          <input type="month" id="invoiceMonth" value="${new Date().toISOString().slice(0, 7)}">
+          <input type="month" id="invoiceMonth" value="${new Date().toISOString().slice(0,7)}">
         </div>
         <div class="form-group">
           <button id="generateInvoice" class="btn-primary">${t('generate')}</button>
         </div>
       </div>
+    </div>
+
+    <div class="flex-between mb-3">
+      <h2>${t('worklogs')}</h2>
+      <button id="addLog" class="btn-primary">${t('addLog')}</button>
     </div>
 
     <div class="table-container">
@@ -418,17 +428,17 @@ function renderWorkLogs(container) {
           ` : state.timesheets.map(ts => {
             const client = state.clients.find(c => c.id === ts.client_id);
             return `
-            <tr>
-              <td>${formatDate(ts.date)}</td>
-              <td>${client?.name || '-'}</td>
-              <td>${ts.hours}</td>
-              <td>${ts.notes || '-'}</td>
-              <td>${ts.billed ? '✓' : '-'}</td>
-              <td>
-                <button class="action-btn" onclick="window.editTimesheet('${ts.id}')" title="${t('edit')}">✏️</button>
-                <button class="action-btn" onclick="window.deleteTimesheet('${ts.id}')" title="${t('delete')}">🗑️</button>
-              </td>
-            </tr>
+              <tr>
+                <td>${formatDate(ts.date)}</td>
+                <td>${client?.name || '-'}</td>
+                <td>${ts.hours || 0}</td>
+                <td>${ts.notes || '-'}</td>
+                <td>${ts.billed ? '✓' : '✗'}</td>
+                <td>
+                  <button class="action-btn" onclick="window.editTimesheet('${ts.id}')" title="${t('edit')}">✏️</button>
+                  <button class="action-btn" onclick="window.deleteTimesheet('${ts.id}')" title="${t('delete')}">🗑️</button>
+                </td>
+              </tr>
             `;
           }).join('')}
         </tbody>
@@ -436,34 +446,39 @@ function renderWorkLogs(container) {
     </div>
   `;
 
-  document.getElementById('addTimesheet').addEventListener('click', () => showTimesheetForm());
+  document.getElementById('addLog')?.addEventListener('click', () => showTimesheetForm());
   document.getElementById('generateInvoice')?.addEventListener('click', generateInvoice);
 }
 
 // Trash View
-function renderTrash(container) {
-  database.getTrash().then(trashItems => {
-    container.innerHTML = `
-      <div class="flex-between mb-3">
-        <h2>${t('trash')}</h2>
-      </div>
+async function renderTrash(container) {
+  const trash = await database.getTrash();
 
+  container.innerHTML = `
+    <h2 class="mb-3">${t('trash')}</h2>
+
+    ${trash.length === 0 ? `
+      <div class="empty-state">
+        <div class="empty-state-icon">🗑️</div>
+        <p>${t('emptyTrash')}</p>
+      </div>
+    ` : `
       <div class="table-container">
         <table>
           <thead>
             <tr>
               <th>${t('itemName')}</th>
               <th>${t('itemType')}</th>
+              <th>${t('date')}</th>
               <th>${t('actions')}</th>
             </tr>
           </thead>
           <tbody>
-            ${trashItems.length === 0 ? `
-              <tr><td colspan="3" class="text-center text-muted">${t('emptyTrash')}</td></tr>
-            ` : trashItems.map(item => `
+            ${trash.map(item => `
               <tr>
-                <td>${item.name || item.description || 'Unnamed'}</td>
+                <td>${item.name || item.description || item.id}</td>
                 <td>${item._table}</td>
+                <td>${formatDate(item.deleted)}</td>
                 <td>
                   <button class="action-btn" onclick="window.restoreItem('${item._table}', '${item.id}')" title="${t('restore')}">↩️</button>
                   <button class="action-btn" onclick="window.deleteForever('${item._table}', '${item.id}')" title="${t('deleteForever')}">❌</button>
@@ -473,8 +488,8 @@ function renderTrash(container) {
           </tbody>
         </table>
       </div>
-    `;
-  });
+    `}
+  `;
 }
 
 // Profile View
@@ -482,97 +497,130 @@ function renderProfile(container) {
   const profile = state.profile || {};
 
   container.innerHTML = `
-    <div class="flex-between mb-3">
-      <h2>${t('businessProfile')}</h2>
-    </div>
+    <h2 class="mb-3">${t('businessProfile')}</h2>
 
-    <form id="profileForm" class="form-container">
-      <div class="form-group">
-        <label>${t('businessName')}</label>
-        <input type="text" name="name" value="${profile.name || ''}">
-      </div>
-      <div class="form-group">
-        <label>${t('businessAddress')}</label>
-        <textarea name="address">${profile.address || ''}</textarea>
-      </div>
-      <div class="form-group">
-        <label>${t('businessEmail')}</label>
-        <input type="email" name="email" value="${profile.email || ''}">
-      </div>
-      <button type="submit" class="btn-primary">${t('save')}</button>
-    </form>
+    <div class="form-container">
+      <form id="profileForm">
+        <div class="form-grid">
+          <div class="form-group full-width">
+            <label>${t('businessName')}</label>
+            <input type="text" name="name" value="${profile.name || ''}" required>
+          </div>
+
+          <div class="form-group full-width">
+            <label>${t('businessAddress')}</label>
+            <textarea name="address">${profile.address || ''}</textarea>
+          </div>
+
+          <div class="form-group full-width">
+            <label>${t('businessEmail')}</label>
+            <input type="email" name="email" value="${profile.email || ''}">
+          </div>
+
+          <div class="form-group full-width">
+            <h3 class="mb-2">${t('bankAccounts')}</h3>
+            ${[1,2,3].map(i => {
+              const bank = profile.bank_entries?.[i-1] || {};
+              return `
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>${t('bankLabel')} ${i}</label>
+                  <input type="text" name="bank_label_${i}" value="${bank.label || ''}">
+                </div>
+                <div class="form-group">
+                  <label>${t('bankNumber')} ${i}</label>
+                  <input type="text" name="bank_number_${i}" value="${bank.number || ''}">
+                </div>
+              </div>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="form-group full-width">
+            <h3 class="mb-2">${t('idNumbers')}</h3>
+            ${[1,2,3,4].map(i => `
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>${t('idLabel')} ${i}</label>
+                  <input type="text" name="id_label_${i}" value="${profile[`id_label_${i}`] || ''}">
+                </div>
+                <div class="form-group">
+                  <label>${t('idNumber')} ${i}</label>
+                  <input type="text" name="id_number_${i}" value="${profile[`id_number_${i}`] || ''}">
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="flex gap-2 mt-2">
+          <button type="submit" class="btn-primary">${t('save')}</button>
+          <button type="button" class="btn-secondary" onclick="window.location.reload()">${t('cancel')}</button>
+        </div>
+      </form>
+    </div>
   `;
 
-  document.getElementById('profileForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const profileData = Object.fromEntries(formData);
-
-    try {
-      await database.saveProfile(profileData);
-      state.profile = await database.getProfile();
-      showToast(t('saveSuccess'));
-    } catch (err) {
-      showToast('Save failed', 'error');
-    }
-  });
+  document.getElementById('profileForm').addEventListener('submit', saveProfile);
 }
 
-// Modal Functions
-function showModal(title, content, onSubmit, skipForm) {
-  const existingModal = document.getElementById('modal');
-  if (existingModal) {
-    existingModal.remove();
-  }
-
-  const modal = document.createElement('div');
-  modal.id = 'modal';
-  modal.className = 'modal';
-  modal.innerHTML = `
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>${title}</h2>
-        <button class="close-btn" onclick="hideModal()">&times;</button>
-      </div>
-      <div class="modal-body">
-        ${content}
+// Modal System
+function showModal(title, content, onSave) {
+  const modal = `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title">${title}</h2>
+          <button class="modal-close" onclick="window.closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+          ${content}
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="window.closeModal()">${t('cancel')}</button>
+          <button class="btn-primary" id="modalSave">${t('save')}</button>
+        </div>
       </div>
     </div>
   `;
 
-  document.body.appendChild(modal);
+  document.getElementById('modalContainer').innerHTML = modal;
 
-  if (onSubmit && !skipForm) {
-    const form = modal.querySelector('form');
-    if (form) {
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(form);
-        await onSubmit(formData);
-        hideModal();
-      });
-    }
-  } else if (onSubmit) {
-    onSubmit();
-  }
-
-  // Close on backdrop click
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) hideModal();
-  });
-}
-
-function hideModal() {
-  const modal = document.getElementById('modal');
-  if (modal) {
-    modal.remove();
+  if (onSave) {
+    document.getElementById('modalSave').addEventListener('click', async () => {
+      await onSave();
+      window.closeModal();
+    });
   }
 }
 
+window.closeModal = function() {
+  document.getElementById('modalContainer').innerHTML = '';
+};
+
+// Client Forms
 function showClientForm(clientId = null) {
   const client = clientId ? state.clients.find(c => c.id === clientId) : {};
 
   showModal(clientId ? t('editClient') : t('addClient'), `
+    setTimeout(() => {
+      const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
+      const rateInput = document.querySelector('#jobForm input[name="rate"]');
+      const currencySelect = document.querySelector('#jobForm select[name="currency"]');
+
+      if (clientSelect && rateInput && currencySelect) {
+        clientSelect.addEventListener('change', () => {
+          const client = state.clients.find(c => c.id === clientSelect.value);
+          if (client) {
+            rateInput.value = client.rate || '';
+            currencySelect.value = client.currency || 'CZK';
+          }
+        });
+      }
+    }, 0);
+
+
+
     <form id="clientForm">
       <div class="form-grid">
         <div class="form-group">
@@ -581,11 +629,16 @@ function showClientForm(clientId = null) {
         </div>
 
         <div class="form-group">
-          <label>${t('email')}</label>
-          <input type="email" name="email" value="${client.email || ''}">
+          <label>${t('adminEmail')}</label>
+          <input type="email" name="admin_email" value="${client.admin_email || ''}">
         </div>
 
         <div class="form-group">
+          <label>${t('invoiceEmail')}</label>
+          <input type="email" name="invoice_email" value="${client.invoice_email || ''}">
+        </div>
+
+        <div class="form-group full-width">
           <label>${t('address')}</label>
           <textarea name="address">${client.address || ''}</textarea>
         </div>
@@ -664,10 +717,48 @@ function showClientForm(clientId = null) {
     }
   });
 }
+// Job calculation functions
+window.updateJobCalculations = () => {
+  const hours = parseFloat(document.querySelector('input[name="hours"]')?.value) || 0;
+  const rate = parseFloat(document.querySelector('input[name="rate"]')?.value) || 0;
+  const deposit = parseFloat(document.querySelector('input[name="deposit"]')?.value) || 0;
+
+  let totalExpenses = 0;
+  const expenseAmounts = document.querySelectorAll('input[name^="expense_amount_"]');
+  expenseAmounts.forEach(input => {
+    totalExpenses += parseFloat(input.value) || 0;
+  });
+
+  const laborTotal = hours * rate;
+  const totalInvoice = laborTotal + totalExpenses;
+  const totalDue = totalInvoice - deposit;
+
+  const currency = document.querySelector('select[name="currency"]')?.value || 'CZK';
+
+  document.getElementById('totalInvoice').value = `${formatCurrency(totalInvoice)} ${currency}`;
+  document.getElementById('totalDue').value = `${formatCurrency(totalDue)} ${currency}`;
+};
+
+window.removeExpense = (button) => {
+  button.parentElement.remove();
+  updateJobCalculations();
+};
 
 function showJobForm(jobId = null) {
   const job = jobId ? state.jobs.find(j => j.id === jobId) : {};
-  const expenses = job?.expenses || [{ description: '', amount: 0 }];
+
+  // Parse existing expenses or create empty array
+  let expenses = [];
+  if (job.expenses) {
+    try {
+      expenses = typeof job.expenses === 'string' ? JSON.parse(job.expenses) : job.expenses;
+    } catch (e) {
+      expenses = [];
+    }
+  }
+  if (expenses.length === 0) {
+    expenses = [{ description: '', amount: '' }]; // Always show at least one blank expense
+  }
 
   showModal(jobId ? t('editJob') : t('addJob'), `
     <form id="jobForm">
@@ -709,7 +800,7 @@ function showJobForm(jobId = null) {
 
         <div class="form-group">
           <label>${t('hours')}</label>
-          <input type="number" name="hours" value="${job.hours || ''}" step="1" min="0" onchange="updateJobCalculations()">
+          <input type="number" name="hours" value="${job.hours || ''}" step="0.01" onchange="updateJobCalculations()">
         </div>
 
         <div class="form-group">
@@ -734,60 +825,62 @@ function showJobForm(jobId = null) {
         </div>
 
         <div class="form-group full-width">
-          <h3>${t('expenses')}</h3>
+          <label>${t('expenses')}</label>
           <div id="expensesContainer">
-            ${expenses.map((expense, index) => `
-              <div class="expense-row" data-index="${index}">
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                  <input type="text" name="expense_description_${index}" placeholder="${t('description')}" value="${expense.description || ''}" style="flex: 2;" onchange="updateJobCalculations()">
-                  <input type="number" name="expense_amount_${index}" placeholder="${t('amount')}" value="${expense.amount || ''}" step="0.01" min="0" style="flex: 1;" onchange="updateJobCalculations()">
-                  ${index > 0 ? `<button type="button" class="btn-danger" onclick="removeExpense(${index})">×</button>` : ''}
+            ${expenses.map((exp, i) => `
+              <div class="expense-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: end;">
+                <div style="flex: 2;">
+                  <input type="text" name="expense_description_${i}" value="${exp.description || ''}" placeholder="${t('expenseDescription')}" onchange="updateJobCalculations()">
                 </div>
+                <div style="flex: 1;">
+                  <input type="number" name="expense_amount_${i}" value="${exp.amount || ''}" placeholder="${t('expenseAmount')}" step="0.01" onchange="updateJobCalculations()">
+                </div>
+                ${i > 0 ? '<button type="button" onclick="removeExpense(this)" style="background: red; color: white; border: none; padding: 5px;">×</button>' : ''}
               </div>
             `).join('')}
           </div>
-          <button type="button" class="btn-secondary" onclick="addNewExpense()">${t('addNewExpense')}</button>
+          <button type="button" id="addExpenseBtn" style="margin-top: 10px; background: #007bff; color: white; border: none; padding: 8px 16px; cursor: pointer;">${t('addExpense')}</button>
         </div>
 
         <div class="form-group">
           <label>${t('deposit')}</label>
-          <input type="number" name="deposit" value="${job.deposit || ''}" step="0.01" min="0" onchange="updateJobCalculations()">
-        </div>
-
-        <div class="form-group full-width">
-          <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #f9f9f9;">
-            <div style="margin-bottom: 5px;"><strong>${t('jobSubtotal')}: <span id="jobSubtotal">0.00</span></strong></div>
-            <div style="margin-bottom: 5px;"><strong>${t('totalExpenses')}: <span id="totalExpenses">0.00</span></strong></div>
-            <div style="margin-bottom: 5px;"><strong>${t('totalInvoice')}: <span id="totalInvoice">0.00</span></strong></div>
-            <div style="margin-bottom: 5px;"><strong>${t('totalDue')}: <span id="totalDue">0.00</span></strong></div>
-          </div>
+          <input type="number" name="deposit" value="${job.deposit || ''}" step="0.01" onchange="updateJobCalculations()">
         </div>
 
         <div class="form-group">
-          <label>
-            <input type="checkbox" name="billed" ${job.billed ? 'checked' : ''}>
-            ${t('billed')}
-          </label>
+          <label>${t('totalInvoice')}</label>
+          <input type="text" id="totalInvoice" readonly style="background: #f5f5f5;">
+        </div>
+
+        <div class="form-group">
+          <label>${t('totalDue')}</label>
+          <input type="text" id="totalDue" readonly style="background: #f5f5f5;">
         </div>
 
       </div>
 
       <input type="hidden" name="id" value="${job.id || ''}">
     </form>
-    `, async (formData) => {
+    `, async () => {
+      const form = document.getElementById('jobForm');
+      const formData = new FormData(form);
       const data = Object.fromEntries(formData);
 
       // Collect expenses
-      const expenses = [];
-      let index = 0;
-      while (formData.get(`expense_description_${index}`) !== null || formData.get(`expense_amount_${index}`) !== null) {
-        const description = formData.get(`expense_description_${index}`) || '';
-        const amount = parseFloat(formData.get(`expense_amount_${index}`)) || 0;
-        if (description || amount > 0) {
-          expenses.push({ description, amount });
+      const expensesList = [];
+      let i = 0;
+      while (formData.has(`expense_description_${i}`)) {
+        const desc = formData.get(`expense_description_${i}`);
+        const amt = formData.get(`expense_amount_${i}`);
+        if (desc || amt) {
+          expensesList.push({
+            description: desc,
+            amount: parseFloat(amt) || 0
+          });
         }
-        index++;
+        i++;
       }
+      data.expenses = JSON.stringify(expensesList);
 
       if (data.client_id) {
         const client = state.clients.find(c => c.id === data.client_id);
@@ -804,10 +897,6 @@ function showJobForm(jobId = null) {
       if (data.start_date === '') delete data.start_date;
       if (data.end_date === '') delete data.end_date;
       if (data.deposit === '') delete data.deposit;
-
-      // Add expenses and deposit to data
-      data.expenses = expenses;
-      if (data.deposit) data.deposit = parseFloat(data.deposit);
 
       try {
         await database.saveJob(data);
@@ -844,70 +933,29 @@ function showJobForm(jobId = null) {
       }
     }
 
+    // Add expense button functionality
+    document.getElementById('addExpenseBtn').addEventListener('click', () => {
+      const container = document.getElementById('expensesContainer');
+      const newIndex = container.children.length;
+      const newExpense = document.createElement('div');
+      newExpense.className = 'expense-row';
+      newExpense.style = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: end;';
+      newExpense.innerHTML = `
+        <div style="flex: 2;">
+          <input type="text" name="expense_description_${newIndex}" placeholder="${t('expenseDescription')}" onchange="updateJobCalculations()">
+        </div>
+        <div style="flex: 1;">
+          <input type="number" name="expense_amount_${newIndex}" placeholder="${t('expenseAmount')}" step="0.01" onchange="updateJobCalculations()">
+        </div>
+        <button type="button" onclick="removeExpense(this)" style="background: red; color: white; border: none; padding: 5px;">×</button>
+      `;
+      container.appendChild(newExpense);
+    });
+
     // Initial calculation
     setTimeout(updateJobCalculations, 100);
 }
 
-// Expense management functions
-window.addNewExpense = function() {
-  const container = document.getElementById('expensesContainer');
-  const existingRows = container.querySelectorAll('.expense-row');
-  const newIndex = existingRows.length;
-
-  const newRow = document.createElement('div');
-  newRow.className = 'expense-row';
-  newRow.dataset.index = newIndex;
-  newRow.innerHTML = `
-    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-      <input type="text" name="expense_description_${newIndex}" placeholder="${t('description')}" style="flex: 2;" onchange="updateJobCalculations()">
-      <input type="number" name="expense_amount_${newIndex}" placeholder="${t('amount')}" step="0.01" min="0" style="flex: 1;" onchange="updateJobCalculations()">
-      <button type="button" class="btn-danger" onclick="removeExpense(${newIndex})">×</button>
-    </div>
-  `;
-
-  container.appendChild(newRow);
-};
-
-window.removeExpense = function(index) {
-  const row = document.querySelector(`.expense-row[data-index="${index}"]`);
-  if (row) {
-    row.remove();
-    updateJobCalculations();
-  }
-};
-
-window.updateJobCalculations = function() {
-  const form = document.getElementById('jobForm');
-  if (!form) return;
-
-  const hours = parseFloat(form.querySelector('[name="hours"]')?.value) || 0;
-  const rate = parseFloat(form.querySelector('[name="rate"]')?.value) || 0;
-  const deposit = parseFloat(form.querySelector('[name="deposit"]')?.value) || 0;
-
-  const jobSubtotal = hours * rate;
-
-  let totalExpenses = 0;
-  const expenseRows = form.querySelectorAll('.expense-row');
-  expenseRows.forEach(row => {
-    const amountInput = row.querySelector('input[type="number"]');
-    if (amountInput) {
-      totalExpenses += parseFloat(amountInput.value) || 0;
-    }
-  });
-
-  const totalInvoice = jobSubtotal + totalExpenses;
-  const totalDue = totalInvoice - deposit;
-
-  const jobSubtotalEl = document.getElementById('jobSubtotal');
-  const totalExpensesEl = document.getElementById('totalExpenses');
-  const totalInvoiceEl = document.getElementById('totalInvoice');
-  const totalDueEl = document.getElementById('totalDue');
-
-  if (jobSubtotalEl) jobSubtotalEl.textContent = formatCurrency(jobSubtotal);
-  if (totalExpensesEl) totalExpensesEl.textContent = formatCurrency(totalExpenses);
-  if (totalInvoiceEl) totalInvoiceEl.textContent = formatCurrency(totalInvoice);
-  if (totalDueEl) totalDueEl.textContent = formatCurrency(totalDue);
-};
 
 function showTimesheetForm(timesheetId = null) {
   const ts = timesheetId ? state.timesheets.find(t => t.id === timesheetId) : {};
@@ -975,47 +1023,169 @@ function showTimesheetForm(timesheetId = null) {
     const formData = new FormData(form);
   const data = Object.fromEntries(formData);
 
+  data.billed = document.getElementById('billedCheck').checked;
+
+  // inherit client rate/currency if missing
   if (data.client_id) {
     const client = state.clients.find(c => c.id === data.client_id);
     if (client) {
-      if (!data.rate || data.rate === '') data.rate = client.rate ?? '';
-      if (!data.currency || data.currency === '') data.currency = client.currency ?? '';
+      if (!data.rate || data.rate === '') data.rate = client.rate || 0;
+      if (!data.currency || data.currency === '') data.currency = client.currency || 'USD';
     }
   }
 
   if (!data.id) delete data.id;
-  if (data.client_id === '') delete data.client_id;
-  if (data.rate === '') delete data.rate;
-  if (data.currency === '') delete data.currency;
+  if (data.hours === '') delete data.hours;
 
-  try {
+
     await database.saveTimesheet(data);
-    state.timesheets = await database.getTimesheets();
+    await loadData();
     showView('worklogs');
     showToast(t('saveSuccess'));
-  } catch (err) {
-    console.error('Save failed:', err);
-    showToast('Save failed', 'error');
+  });
+}
+
+async function createInvoiceFromJob(jobId) {
+  const job = state.jobs.find(j => j.id === jobId);
+  if (!job) return;
+
+  const client = state.clients.find(c => c.id === job.client_id);
+  if (!client) {
+    showToast('Client not found', 'error');
+    return;
   }
+
+  const hours = parseFloat(job.hours) || 0;
+  const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
+  const currency = job.currency || client.currency || 'CZK';
+  const laborTotal = hours * rate;
+
+  // Parse expenses
+  let expenses = [];
+  if (job.expenses) {
+    try {
+      expenses = typeof job.expenses === 'string' ? JSON.parse(job.expenses) : job.expenses;
+    } catch (e) {
+      expenses = [];
+    }
+  }
+
+  const totalExpenses = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+  const total = laborTotal + totalExpenses;
+
+  let dateRange = '';
+  if (job.start_date && job.end_date) {
+    dateRange = `${formatDate(job.start_date)} - ${formatDate(job.end_date)}`;
+  } else if (job.start_date) {
+    dateRange = formatDate(job.start_date);
+  }
+
+  const descParts = [job.name];
+  if (job.description) descParts.push(job.description);
+  if (job.address) descParts.push(job.address);
+  if (dateRange) descParts.push(dateRange);
+  const fullDescription = descParts.join('\n');
+
+  // Generate invoice ID in format YYMMDD-II
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `${yy}${mm}${dd}`;
+
+  const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
+  let nextIncrement = 1;
+  if (todayInvoices.length > 0) {
+    const increments = todayInvoices.map(inv => {
+      const parts = inv.id.split('-');
+      return parts.length === 2 ? parseInt(parts[1]) : 0;
+    });
+    nextIncrement = Math.max(...increments) + 1;
+  }
+  const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
+
+  // Create items array with labor and expenses
+  const items = [];
+
+  // Add labor item
+  if (hours > 0) {
+    items.push({
+      description: fullDescription,
+      hours: hours,
+      rate: rate,
+      amount: laborTotal
+    });
+  }
+
+  // Add expense items
+  expenses.forEach(expense => {
+    if (expense.description && (parseFloat(expense.amount) || 0) > 0) {
+      items.push({
+        description: expense.description,
+        hours: 0,
+        rate: 0,
+        amount: parseFloat(expense.amount)
+      });
+    }
   });
 
-  const clientSelect = document.querySelector('#timesheetForm select[name="client_id"]');
-  const rateInput = document.querySelector('#timesheetForm input[name="rate"]');
-  const currencySelect = document.querySelector('#timesheetForm select[name="currency"]');
+  const invoiceData = {
+    id: invoiceId,
+    client_id: job.client_id,
+    items: JSON.stringify(items),
+    total: total,
+    deposit: job.deposit || 0,
+    status: 'unpaid',
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  };
 
-  if (clientSelect && rateInput && currencySelect) {
-    const applyClientDefaults = () => {
-      const client = state.clients.find(c => c.id === clientSelect.value);
-      if (!client) return;
-
-      if (!rateInput.value) rateInput.value = client.rate || '';
-      if (!currencySelect.value) currencySelect.value = client.currency || 'CZK';
-    };
-
-    clientSelect.addEventListener('change', applyClientDefaults);
+  try {
+    await database.saveInvoice(invoiceData);
+    await database.saveJob({ ...job, billed: true });
+    await loadData();
+    showView('dashboard');
+    showToast('Invoice created successfully');
+  } catch (err) {
+    console.error('Failed to create invoice:', err);
+    showToast('Failed to create invoice', 'error');
   }
 }
 
+async function saveProfile(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData);
+
+  const bank_entries = [];
+  for (let i = 1; i <= 3; i++) {
+    const label = data[`bank_label_${i}`];
+    const number = data[`bank_number_${i}`];
+    if (label || number) {
+      bank_entries.push({ label: label || '', number: number || '' });
+    }
+    delete data[`bank_label_${i}`];
+    delete data[`bank_number_${i}`];
+  }
+
+  const id_entries = [];
+  for (let i = 1; i <= 4; i++) {
+    const label = data[`id_label_${i}`];
+    const number = data[`id_number_${i}`];
+    if (label || number) {
+      id_entries.push({ label: label || '', number: number || '' });
+    }
+  }
+
+  data.bank_entries = bank_entries;
+  data.id_entries = id_entries;
+
+  await database.saveProfile(data);
+  state.profile = data;
+  showToast(t('saveSuccess'));
+}
+
+// Invoice Generation
 async function generateInvoice() {
   const clientId = document.getElementById('invoiceClient').value;
   const month = document.getElementById('invoiceMonth').value;
@@ -1085,106 +1255,6 @@ async function generateInvoice() {
   showToast(t('saveSuccess'));
 }
 
-async function createInvoiceFromJob(jobId) {
-  const job = state.jobs.find(j => j.id === jobId);
-  if (!job) return;
-
-  const client = state.clients.find(c => c.id === job.client_id);
-  if (!client) {
-    showToast('Client not found', 'error');
-    return;
-  }
-
-  const hours = parseFloat(job.hours) || 0;
-  const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
-  const currency = job.currency || client.currency || 'CZK';
-  const jobSubtotal = hours * rate;
-
-  let dateRange = '';
-  if (job.start_date && job.end_date) {
-    dateRange = `${formatDate(job.start_date)} - ${formatDate(job.end_date)}`;
-  } else if (job.start_date) {
-    dateRange = formatDate(job.start_date);
-  }
-
-  const descParts = [job.name];
-  if (job.description) descParts.push(job.description);
-  if (job.address) descParts.push(job.address);
-  if (dateRange) descParts.push(dateRange);
-  const fullDescription = descParts.join('\n');
-
-  // Prepare invoice items - start with main job item
-  const items = [{
-    description: fullDescription,
-    hours: hours,
-    rate: rate
-  }];
-
-  // Add expenses as separate line items
-  const expenses = job.expenses || [];
-  expenses.forEach(expense => {
-    if (expense.description && expense.amount > 0) {
-      items.push({
-        description: expense.description,
-        hours: 1,
-        rate: expense.amount
-      });
-    }
-  });
-
-  // Calculate totals
-  const totalExpenses = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
-  const subtotalBeforeDeposit = jobSubtotal + totalExpenses;
-  const deposit = parseFloat(job.deposit) || 0;
-  const finalTotal = subtotalBeforeDeposit - deposit;
-
-  // Add deposit as negative line item if there is one
-  if (deposit > 0) {
-    items.push({
-      description: `${t('deposit')} / Deposit`,
-      hours: 1,
-      rate: -deposit
-    });
-  }
-
-  // Generate invoice ID in format YYMMDD-II
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const datePrefix = `${yy}${mm}${dd}`;
-
-  const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
-  let nextIncrement = 1;
-  if (todayInvoices.length > 0) {
-    const increments = todayInvoices.map(inv => {
-      const parts = inv.id.split('-');
-      return parts.length === 2 ? parseInt(parts[1]) : 0;
-    });
-    nextIncrement = Math.max(...increments) + 1;
-  }
-  const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
-
-  const invoiceData = {
-    id: invoiceId,
-    client_id: job.client_id,
-    items: JSON.stringify(items),
-    total: finalTotal,
-    status: 'unpaid',
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  };
-
-  try {
-    await database.saveInvoice(invoiceData);
-    await database.saveJob({ ...job, billed: true });
-    await loadData();
-    showView('dashboard');
-    showToast('Invoice created successfully');
-  } catch (err) {
-    console.error('Failed to create invoice:', err);
-    showToast('Save failed', 'error');
-  }
-}
 
 // Export Functions
 function exportLedger(format) {
@@ -1237,43 +1307,22 @@ async function restoreData(file) {
     const u = state.currentUser.id;
 
     // 1. profile
-    if (b.profile) {
-      await database.saveProfile(b.profile);
-    }
-
-    // 2. delete all user data
-    await database.deleteAllUserData(u);
-
-    // 3. restore with new user_id
-    for (const client of (b.clients || [])) {
-      await database.saveClient({ ...client, id: null });
-    }
-    for (const job of (b.jobs || [])) {
-      await database.saveJob({ ...job, id: null });
-    }
-    for (const ts of (b.timesheets || [])) {
-      await database.saveTimesheet({ ...ts, id: null });
-    }
-    for (const inv of (b.invoices || [])) {
-      await database.saveInvoice({ ...inv, id: null });
-    }
+    if (b.profile) await database.saveProfile({...b.profile, user_id: u});
+    // 2. clients
+    for (const c of b.clients) await database.saveClient({...c, user_id: u});
+    // 3. jobs
+    for (const j of b.jobs)       await database.saveJob({...j, user_id: u});
+    // 4. timesheets
+    for (const t of b.timesheets) await database.saveTimesheet({...t, user_id: u});
+    // 5. invoices
+    for (const i of b.invoices)   await database.saveInvoice({...i, user_id: u});
 
     await loadData();
-    showToast('Data restored successfully');
     showView('dashboard');
+    showToast('Restored');
   };
-  reader.readAsText(file);
 }
 
-window.editClient = (id) => showClientForm(id);
-window.deleteClient = async (id) => {
-  if (confirm(t('confirmDelete'))) {
-    await database.deleteClient(id);
-    await loadData();
-    showView('clients');
-    showToast(t('deleteSuccess'));
-  }
-};
 
 window.editJob = (id) => showJobForm(id);
 window.createInvoiceFromJob = createInvoiceFromJob;
@@ -1296,14 +1345,10 @@ window.deleteTimesheet = async (id) => {
   }
 };
 
-window.markInvoicePaid = async (id) => {
-  await database.markInvoicePaid(id);
-  await loadData();
-  showView('dashboard');
-  showToast('Invoice marked as paid');
-};
+// Replace the two functions `window.viewInvoice` and `window.downloadInvoice` in app.js
+// This version forces a bilingual template: Czech first, English second. Layout and logic unchanged.
 
-window.showInvoice = (id) => {
+window.viewInvoice = async (id) => {
   const inv = state.invoices.find(i => i.id === id);
   if (!inv) return;
 
@@ -1316,35 +1361,46 @@ window.showInvoice = (id) => {
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>Invoice ${inv.id}</title>
+      <title>FAKTURA / INVOICE #${inv.id}</title>
       <style>
-        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .parties { display: flex; justify-content: space-between; margin-bottom: 30px; }
-        .party { width: 45%; }
-        .party h3 { margin-bottom: 10px; color: #333; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f5f5f5; }
-        .right { text-align: right; }
-        .total-section { margin-top: 20px; text-align: right; }
-        .total-line { font-size: 18px; font-weight: bold; margin: 5px 0; }
-        .footer-info { margin-top: 30px; font-size: 12px; color: #666; }
-        .no-print { margin-top: 20px; }
-        .print-btn { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
-        @media print { .no-print { display: none; } }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; padding: 50px; max-width: 900px; margin: 0 auto; color: #000; background: #fff; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
+        .invoice-title { font-size: 36px; font-weight: bold; }
+        .invoice-meta { text-align: right; font-size: 14px; line-height: 1.8; }
+        .invoice-meta div { margin-bottom: 2px; }
+        .separator { border-bottom: 2px solid #000; margin: 25px 0; }
+        .parties { display: flex; justify-content: space-between; margin: 30px 0 40px 0; }
+        .party { width: 48%; }
+        .party h3 { font-size: 15px; font-weight: bold; margin-bottom: 8px; }
+        .party p { margin: 0; font-size: 14px; line-height: 1.5; }
+        table { width: 100%; border-collapse: collapse; margin: 30px 0; }
+        th { background: #f8f8f8; padding: 12px; text-align: left; font-weight: bold; font-size: 13px; border-bottom: 2px solid #333; }
+        th.right { text-align: right; }
+        td { padding: 12px; font-size: 14px; border-bottom: 1px solid #e0e0e0; }
+        td:first-child { max-width: 400px; word-wrap: break-word; white-space: normal; }
+        td.right { text-align: right; }
+        .total-section { text-align: right; margin-top: 30px; }
+        .total-line { font-size: 20px; font-weight: bold; padding: 15px 0; border-top: 2px solid #000; }
+        .footer-info { margin-top: 50px; font-size: 13px; line-height: 1.8; }
+        .footer-info p { margin: 3px 0; }
+        @media print { body { padding: 30px; } .no-print { display: none; } }
+        .print-btn { padding: 14px 28px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; margin-top: 40px; font-weight: 500; }
+        .print-btn:hover { background: #4f46e5; }
       </style>
     </head>
     <body>
       <div class="header">
-        <h1>FAKTURA / INVOICE</h1>
-        <p>
-          <strong>Číslo faktury / Invoice #:</strong> ${inv.id}<br>
-          <strong>Datum vystavení / Issue date:</strong> ${formatDate(inv.created_at)}<br>
-          <strong>Datum splatnosti / Due date:</strong> ${formatDate(inv.due_date)}<br>
-          <strong>Forma úhrady / Payment:</strong> Bankovní převod / Bank transfer
-        </p>
+        <h1 class="invoice-title">FAKTURA / INVOICE</h1>
+        <div class="invoice-meta">
+          <div><strong>Číslo faktury / Invoice #:</strong> ${inv.id}</div>
+          <div><strong>Datum vystavení / Issue date:</strong> ${formatDate(inv.created_at)}</div>
+          <div><strong>Datum splatnosti / Due date:</strong> ${formatDate(inv.due_date)}</div>
+          <div><strong>Forma úhrady / Payment Method:</strong> Bankovní převod / Bank transfer</div>
+        </div>
       </div>
+
+      <div class="separator"></div>
 
       <div class="parties">
         <div class="party">
@@ -1399,16 +1455,18 @@ window.showInvoice = (id) => {
           ${items.map(item => `
             <tr>
               <td>${item.description}</td>
-              <td class="right">${(item.hours || 0).toFixed(2)}</td>
-              <td class="right">${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}</td>
-              <td class="right">${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
+              <td class="right">${item.hours ? (item.hours || 0).toFixed(2) : '-'}</td>
+              <td class="right">${item.rate ? formatCurrency(item.rate || 0) + ' ' + (client?.currency || 'CZK') : '-'}</td>
+              <td class="right">${formatCurrency(item.amount || (item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
 
       <div class="total-section">
-        <div class="total-line">CELKEM K ÚHRADĚ / TOTAL DUE: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
+        <div class="total-line">CELKEM FAKTURA / TOTAL INVOICE: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
+        ${inv.deposit ? `<div class="total-line">ZÁLOHA / DEPOSIT: -${formatCurrency(inv.deposit || 0)} ${client?.currency || 'CZK'}</div>` : ''}
+        <div class="total-line"><strong>CELKEM K ÚHRADĚ / TOTAL DUE: ${formatCurrency((inv.total || 0) - (inv.deposit || 0))} ${client?.currency || 'CZK'}</strong></div>
       </div>
 
       <div class="footer-info">
@@ -1516,9 +1574,9 @@ window.downloadInvoice = async (id) => {
     const descLines = doc.splitTextToSize(item.description, descWidth);
 
     doc.text(descLines, 20, y);
-    doc.text((item.hours || 0).toFixed(2), 120, y, { align: 'right' });
-    doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
-    doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+    doc.text(item.hours ? (item.hours || 0).toFixed(2) : '-', 120, y, { align: 'right' });
+    doc.text(item.rate ? `${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}` : '-', 150, y, { align: 'right' });
+    doc.text(`${formatCurrency(item.amount || (item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
     y += Math.max(7, descLines.length * 5);
   });
@@ -1530,8 +1588,18 @@ window.downloadInvoice = async (id) => {
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
-  doc.text('CELKEM K ÚHRADĚ / TOTAL DUE:', 20, y);
+  doc.text('CELKEM FAKTURA / TOTAL INVOICE:', 20, y);
   doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+
+  if (inv.deposit) {
+    y += 8;
+    doc.text('ZÁLOHA / DEPOSIT:', 20, y);
+    doc.text(`-${formatCurrency(inv.deposit || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+  }
+
+  y += 8;
+  doc.text('CELKEM K ÚHRADĚ / TOTAL DUE:', 20, y);
+  doc.text(`${formatCurrency((inv.total || 0) - (inv.deposit || 0))} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
   y += 15;
   doc.setFontSize(11);
