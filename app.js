@@ -1484,20 +1484,26 @@ window.viewInvoice = async (id) => {
         <thead>
           <tr>
             <th>Položka / Description</th>
-            <th class="right">Počet hodin / Hours</th>
-            <th class="right">Sazba/hod. / Rate</th>
+            <th class="right">Množství / Quantity</th>
+            <th class="right">Sazba / Rate</th>
             <th class="right">Částka / Amount</th>
           </tr>
         </thead>
         <tbody>
-          ${items.map(item => `
+          ${items.map(item => {
+            const amount = (item.hours || 1) * (item.rate || 0);
+            let typeLabel = '';
+            if (item.type === 'expense') typeLabel = ' <em>[Výdaj / Expense]</em>';
+            if (item.type === 'deposit') typeLabel = ' <em>[Záloha / Deposit]</em>';
+
+            return `
             <tr>
-              <td>${item.description}</td>
-              <td class="right">${(item.hours || 0).toFixed(2)}</td>
-              <td class="right">${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}</td>
-              <td class="right">${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
+              <td>${item.description}${typeLabel}</td>
+              <td class="right">${item.type === 'service' ? (item.hours || 0).toFixed(2) : '1'}</td>
+              <td class="right">${formatCurrency(Math.abs(item.rate) || 0)} ${client?.currency || 'CZK'}</td>
+              <td class="right">${formatCurrency(amount)} ${client?.currency || 'CZK'}</td>
             </tr>
-          `).join('')}
+          `}).join('')}
         </tbody>
       </table>
 
@@ -1593,8 +1599,8 @@ window.downloadInvoice = async (id) => {
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
   doc.text('Položka / Description', 20, y);
-  doc.text('Počet hodin / Hours', 120, y, { align: 'right' });
-  doc.text('Sazba/hod. / Rate', 150, y, { align: 'right' });
+  doc.text('Množství / Qty', 120, y, { align: 'right' });
+  doc.text('Sazba / Rate', 150, y, { align: 'right' });
   doc.text('Částka / Amount', 190, y, { align: 'right' });
 
   y += 2;
@@ -1607,12 +1613,18 @@ window.downloadInvoice = async (id) => {
     if (y > 270) { doc.addPage(); y = 20; }
 
     const descWidth = 90;
-    const descLines = doc.splitTextToSize(item.description, descWidth);
+    let description = item.description;
+    if (item.type === 'expense') description += ' [Výdaj/Expense]';
+    if (item.type === 'deposit') description += ' [Záloha/Deposit]';
+    const descLines = doc.splitTextToSize(description, descWidth);
+
+    const amount = (item.hours || 1) * (item.rate || 0);
+    const quantity = item.type === 'service' ? (item.hours || 0).toFixed(2) : '1';
 
     doc.text(descLines, 20, y);
-    doc.text((item.hours || 0).toFixed(2), 120, y, { align: 'right' });
-    doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
-    doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+    doc.text(quantity, 120, y, { align: 'right' });
+    doc.text(`${formatCurrency(Math.abs(item.rate) || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
+    doc.text(`${formatCurrency(amount)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
     y += Math.max(7, descLines.length * 5);
   });

@@ -280,13 +280,25 @@ class Database {
   }
 
   async getJobLines(jobId) {
-    return this.request(`job_lines?job_id=eq.${jobId}&user_id=eq.${this.userId}&order=sort_order.asc&select=*`);
+    return this.request(`job_lines?job_id=eq.${jobId}&user_id=eq.${this.userId}&type=in.(expense,deposit)&order=sort_order.asc&select=*`);
   }
 
   async saveJobLine(line) {
+    // Only allow expense and deposit types
+    if (!['expense', 'deposit'].includes(line.type)) {
+      throw new Error('Job lines can only be expenses or deposits');
+    }
+
+    const baseData = {
+      ...line,
+      user_id: this.userId,
+      created_at: line.id ? undefined : new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
     return line.id
-      ? await this.update('job_lines', line.id, line)
-      : await this.create('job_lines', line);
+      ? await this.update('job_lines', line.id, baseData)
+      : await this.create('job_lines', baseData);
   }
 
   async deleteJobLine(id) {
