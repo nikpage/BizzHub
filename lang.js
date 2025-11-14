@@ -66,20 +66,14 @@ export const LANG = {
     startDate: 'Start Date',
     endDate: 'End Date',
     hours: 'Hours',
-    serviceAmount: 'Service Qty.',
-    serviceRate: 'Service Rate',
-
-    // New Keys for Job/Invoice
-    expenses: 'Expenses',
     expense: 'Expense',
-    addExpense: 'Add Expense',
-    deposits: 'Deposits',
     deposit: 'Deposit',
-    addDeposit: 'Add Deposit',
-    totalServiceAndExpenses: 'Total Service & Expenses',
-    totalDepositsApplied: 'Total Deposits Applied',
+    addLine: 'Add Line',
+    serviceAmount: 'Service Amount',
+    expenses: 'Expenses',
+    totalInvoice: 'Total Invoice',
+    deposits: 'Deposits',
     amountDue: 'Amount Due',
-
 
     // Work Logs
     addLog: 'Add Log',
@@ -138,9 +132,6 @@ export const LANG = {
     confirmDeleteForever: 'This will permanently delete the item. Continue?',
     noData: 'No data available',
     loading: 'Loading...',
-    confirmRestore: 'Are you sure you want to replace all current data with the backup file?',
-    confirmDeleteTitle: 'Confirm Deletion',
-    confirmDeleteBody: 'Are you sure you want to move this item to Trash?',
   },
 
   cs: {
@@ -209,19 +200,14 @@ export const LANG = {
     startDate: 'Datum zahájení',
     endDate: 'Datum ukončení',
     hours: 'Hodiny',
-    serviceAmount: 'Množství služby',
-    serviceRate: 'Sazba za službu',
-
-    // New Keys for Job/Invoice
-    expenses: 'Náklady',
-    expense: 'Náklad',
-    addExpense: 'Přidat náklad',
-    deposits: 'Zálohy',
+    expense: 'Výdaj',
     deposit: 'Záloha',
-    addDeposit: 'Přidat zálohu',
-    totalServiceAndExpenses: 'Celkem Služby a Náklady',
-    totalDepositsApplied: 'Celkem Uhrazeno Zálohami',
-    amountDue: 'Částka k úhradě',
+    addLine: 'Přidat položku',
+    serviceAmount: 'Služba',
+    expenses: 'Výdaje',
+    totalInvoice: 'Celkem faktura',
+    deposits: 'Zálohy',
+    amountDue: 'K úhradě',
 
     // Work Logs
     addLog: 'Přidat záznam',
@@ -280,9 +266,6 @@ export const LANG = {
     confirmDeleteForever: 'Tímto položku trvale smažete. Pokračovat?',
     noData: 'Žádná data k zobrazení',
     loading: 'Načítání...',
-    confirmRestore: 'Opravdu chcete nahradit všechna aktuální data záložním souborem?',
-    confirmDeleteTitle: 'Potvrďte smazání',
-    confirmDeleteBody: 'Opravdu chcete tuto položku přesunout do Koše?',
   }
 };
 

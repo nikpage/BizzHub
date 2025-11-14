@@ -169,15 +169,21 @@ class Database {
   }
 
   async create(table, record) {
+    const baseData = {
+      ...record,
+      user_id: this.userId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only add deleted field to tables that have it
+    if (['clients','jobs','timesheets','invoices','business'].includes(table)) {
+      baseData.deleted = false;
+    }
+
     const data = await this.request(table, {
       method: 'POST',
-      body: {
-        ...record,
-        user_id: this.userId,
-        deleted: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
+      body: baseData
     });
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error(`Failed to create ${table} record - database returned no data`);
@@ -263,49 +269,30 @@ class Database {
   }
 
   async saveJob(job) {
-    // Stringify complex arrays before saving
-    const jobToSave = {
-      ...job,
-      expenses: JSON.stringify(job.expenses || []),
-      deposits: JSON.stringify(job.deposits || []),
-    };
-
-    const saved = jobToSave.id
-      ? await this.update('jobs', jobToSave.id, jobToSave)
-      : await this.create('jobs', jobToSave);
-
-    // Parse back complex arrays for immediate use if needed (though loadDashboard handles it)
-    if (saved) {
-      saved.expenses = JSON.parse(saved.expenses);
-      saved.deposits = JSON.parse(saved.deposits);
-    }
-
+    const saved = job.id
+      ? await this.update('jobs', job.id, job)
+      : await this.create('jobs', job);
     return saved;
   }
 
-  // Custom job fetching logic to parse expenses/deposits
-  async getJobs() {
-    const jobs = await this.getAll('jobs');
-    return jobs.map(job => ({
-      ...job,
-      expenses: job.expenses ? JSON.parse(job.expenses) : [],
-      deposits: job.deposits ? JSON.parse(job.deposits) : []
-    }));
-  }
-
-  // Custom job fetching logic to parse expenses/deposits
-  async getJob(id) {
-    const job = await this.getById('jobs', id);
-    if (job) {
-        job.expenses = job.expenses ? JSON.parse(job.expenses) : [];
-        job.deposits = job.deposits ? JSON.parse(job.deposits) : [];
-    }
-    return job;
-  }
-
-
   async deleteJob(id) {
     return this.softDelete('jobs', id);
+  }
+
+  async getJobLines(jobId) {
+    return this.request(`job_lines?job_id=eq.${jobId}&user_id=eq.${this.userId}&order=sort_order.asc&select=*`);
+  }
+
+  async saveJobLine(line) {
+    return line.id
+      ? await this.update('job_lines', line.id, line)
+      : await this.create('job_lines', line);
+  }
+
+  async deleteJobLine(id) {
+    await this.request(`job_lines?id=eq.${id}&user_id=eq.${this.userId}`, { method: 'DELETE' });
+    this.clearCache('job_lines');
+    return true;
   }
 
   async getTimesheets() {
@@ -336,20 +323,13 @@ class Database {
   }
 
   async saveInvoice(invoice) {
-    // Ensure complex data is stringified before saving
-    const invoiceToSave = {
-        ...invoice,
-        items: JSON.stringify(invoice.items || []),
-        meta: JSON.stringify(invoice.meta || {})
-    };
-
-    if (invoiceToSave.id) {
-      const existing = await this.getInvoice(invoiceToSave.id);
+    if (invoice.id) {
+      const existing = await this.getInvoice(invoice.id);
       if (existing) {
-        return this.update('invoices', invoiceToSave.id, invoiceToSave);
+        return this.update('invoices', invoice.id, invoice);
       }
     }
-    return this.create('invoices', invoiceToSave);
+    return this.create('invoices', invoice);
   }
 
   async deleteInvoice(id) {
