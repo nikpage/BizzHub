@@ -169,23 +169,19 @@ class Database {
   }
 
   async create(table, record) {
-    const baseRecord = {
-      ...record,
-      user_id: this.userId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    // Only add deleted field for tables that have it
-    if (['clients','jobs','timesheets','invoices','business'].includes(table)) {
-      baseRecord.deleted = false;
-    }
-
+    // IMPORTANT: Ensure the database accepts negative amounts for deposits
+    // The `invoices` table will store positive `total` (Service+Expenses) and
+    // potentially negative `amount_due` if deposits exceed the total.
     const data = await this.request(table, {
       method: 'POST',
-      body: baseRecord
+      body: {
+        ...record,
+        user_id: this.userId,
+        deleted: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
     });
-
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error(`Failed to create ${table} record - database returned no data`);
     }
@@ -214,13 +210,6 @@ class Database {
   }
 
   async hardDelete(table, id) {
-    // If deleting a job, also delete all its job_lines
-    if (table === 'jobs') {
-      await this.request(`job_lines?job_id=eq.${id}&user_id=eq.${this.userId}`, {
-        method: 'DELETE',
-      });
-    }
-
     await this.request(`${table}?id=eq.${id}&user_id=eq.${this.userId}`, {
       method: 'DELETE',
     });
@@ -277,33 +266,49 @@ class Database {
   }
 
   async saveJob(job) {
-    const saved = job.id
-      ? await this.update('jobs', job.id, job)
-      : await this.create('jobs', job);
+    // Stringify complex arrays before saving
+    const jobToSave = {
+      ...job,
+      expenses: JSON.stringify(job.expenses || []),
+      deposits: JSON.stringify(job.deposits || []),
+    };
+
+    const saved = jobToSave.id
+      ? await this.update('jobs', jobToSave.id, jobToSave)
+      : await this.create('jobs', jobToSave);
+
+    // Parse back complex arrays for immediate use if needed (though loadDashboard handles it)
+    if (saved) {
+      saved.expenses = JSON.parse(saved.expenses);
+      saved.deposits = JSON.parse(saved.deposits);
+    }
+
     return saved;
   }
+
+  // Custom job fetching logic to parse expenses/deposits
+  async getJobs() {
+    const jobs = await this.getAll('jobs');
+    return jobs.map(job => ({
+      ...job,
+      expenses: job.expenses ? JSON.parse(job.expenses) : [],
+      deposits: job.deposits ? JSON.parse(job.deposits) : []
+    }));
+  }
+
+  // Custom job fetching logic to parse expenses/deposits
+  async getJob(id) {
+    const job = await this.getById('jobs', id);
+    if (job) {
+        job.expenses = job.expenses ? JSON.parse(job.expenses) : [];
+        job.deposits = job.deposits ? JSON.parse(job.deposits) : [];
+    }
+    return job;
+  }
+
 
   async deleteJob(id) {
     return this.softDelete('jobs', id);
-  }
-
-  async getJobLines(jobId) {
-    return this.request(`job_lines?job_id=eq.${jobId}&user_id=eq.${this.userId}&order=sort_order.asc&select=*`);
-  }
-
-  async saveJobLine(line) {
-    const saved = line.id
-      ? await this.update('job_lines', line.id, line)
-      : await this.create('job_lines', line);
-    return saved;
-  }
-
-  async deleteJobLine(id) {
-    await this.request(`job_lines?id=eq.${id}&user_id=eq.${this.userId}`, {
-      method: 'DELETE',
-    });
-    this.clearCache('job_lines');
-    return true;
   }
 
   async getTimesheets() {
@@ -334,13 +339,20 @@ class Database {
   }
 
   async saveInvoice(invoice) {
-    if (invoice.id) {
-      const existing = await this.getInvoice(invoice.id);
+    // Ensure complex data is stringified before saving
+    const invoiceToSave = {
+        ...invoice,
+        items: JSON.stringify(invoice.items || []),
+        meta: JSON.stringify(invoice.meta || {})
+    };
+
+    if (invoiceToSave.id) {
+      const existing = await this.getInvoice(invoiceToSave.id);
       if (existing) {
-        return this.update('invoices', invoice.id, invoice);
+        return this.update('invoices', invoiceToSave.id, invoiceToSave);
       }
     }
-    return this.create('invoices', invoice);
+    return this.create('invoices', invoiceToSave);
   }
 
   async deleteInvoice(id) {

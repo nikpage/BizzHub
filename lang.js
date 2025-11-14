@@ -66,16 +66,20 @@ export const LANG = {
     startDate: 'Start Date',
     endDate: 'End Date',
     hours: 'Hours',
-    itemizedLines: 'Itemized Lines',
-    lineType: 'Type',
-    lineDescription: 'Description',
-    quantity: 'Qty',
-    unitPrice: 'Unit Price',
-    lineTotal: 'Total',
-    addLine: 'Add Line',
-    service: 'Service',
+    serviceAmount: 'Service Qty.',
+    serviceRate: 'Service Rate',
+
+    // New Keys for Job/Invoice
+    expenses: 'Expenses',
     expense: 'Expense',
+    addExpense: 'Add Expense',
+    deposits: 'Deposits',
     deposit: 'Deposit',
+    addDeposit: 'Add Deposit',
+    totalServiceAndExpenses: 'Total Service & Expenses',
+    totalDepositsApplied: 'Total Deposits Applied',
+    amountDue: 'Amount Due',
+
 
     // Work Logs
     addLog: 'Add Log',
@@ -134,6 +138,7 @@ export const LANG = {
     confirmDeleteForever: 'This will permanently delete the item. Continue?',
     noData: 'No data available',
     loading: 'Loading...',
+    confirmRestore: 'Are you sure you want to replace all current data with the backup file?'
   },
 
   cs: {
@@ -202,16 +207,19 @@ export const LANG = {
     startDate: 'Datum zahájení',
     endDate: 'Datum ukončení',
     hours: 'Hodiny',
-    itemizedLines: 'Položky',
-    lineType: 'Typ',
-    lineDescription: 'Popis',
-    quantity: 'Množství',
-    unitPrice: 'Jedn. cena',
-    lineTotal: 'Celkem',
-    addLine: 'Přidat položku',
-    service: 'Služba',
-    expense: 'Výdaj',
+    serviceAmount: 'Množství služby',
+    serviceRate: 'Sazba za službu',
+
+    // New Keys for Job/Invoice
+    expenses: 'Náklady',
+    expense: 'Náklad',
+    addExpense: 'Přidat náklad',
+    deposits: 'Zálohy',
     deposit: 'Záloha',
+    addDeposit: 'Přidat zálohu',
+    totalServiceAndExpenses: 'Celkem Služby a Náklady',
+    totalDepositsApplied: 'Celkem Uhrazeno Zálohami',
+    amountDue: 'Částka k úhradě',
 
     // Work Logs
     addLog: 'Přidat záznam',
@@ -270,6 +278,7 @@ export const LANG = {
     confirmDeleteForever: 'Tímto položku trvale smažete. Pokračovat?',
     noData: 'Žádná data k zobrazení',
     loading: 'Načítání...',
+    confirmRestore: 'Opravdu chcete nahradit všechna aktuální data záložním souborem?'
   }
 };
 
