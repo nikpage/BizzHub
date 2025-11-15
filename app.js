@@ -963,7 +963,7 @@ function collectLineItems(type) {
       items.push({
         type: type,
         description: description,
-        total: type === 'deposit' ? -amount : amount // Store deposits as negative
+        amount: type === 'deposit' ? -amount : amount // Store deposits as negative
       });
     }
   });
