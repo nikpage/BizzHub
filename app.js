@@ -1179,8 +1179,12 @@ async function createInvoiceFromJob(jobId) {
 
   const now = new Date();
   const prefix = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-  const todayInvs = state.invoices.filter(i => i.id?.startsWith(prefix));
-  const next = todayInvs.length ? Math.max(...todayInvs.map(i => parseInt((i.id || '').split('-')[1]) || 0)) + 1 : 1;
+  // Filter for text IDs that match date pattern, ignore UUID ids
+  const todayInvs = state.invoices.filter(i => {
+    const id = i.id || '';
+    return typeof id === 'string' && id.match(/^\d{6}-\d+$/);
+  }).filter(i => i.id.startsWith(prefix));
+  const next = todayInvs.length ? Math.max(...todayInvs.map(i => parseInt(i.id.split('-')[1]) || 0)) + 1 : 1;
   const invoiceId = `${prefix}-${String(next).padStart(2,'0')}`;
 
   const invoiceData = {
