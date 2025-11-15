@@ -1,5 +1,6 @@
 import { t, setLanguage } from './lang.js';
 import { database } from './db.js';
+import 'netlify-identity-widget';
 
 // App State
 const state = {
