@@ -15,15 +15,16 @@ const state = {
 
 // Utility Functions
 function formatCurrency(amount) {
+  amount = Number(amount) || 0;
   return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatDate(dateString) {
-  if (!dateString) return '-';
+  if (!dateString || dateString === 'null' || dateString === 'undefined') return '-';
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  if (isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('cs-CZ', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
-
 // Initialize app
 async function init() {
   // Wait for Netlify Identity to be ready
@@ -1454,7 +1455,7 @@ window.viewInvoice = async (id) => {
         <h1 class="title">FAKTURA / INVOICE</h1>
         <div class="meta">
           <div><strong>Číslo / #:</strong> ${inv.id}</div>
-          <div><strong>Datum / Date:</strong> ${formatDate(inv.created_at)}</div>
+          <div><strong>Datum / Date:</strong> ${formatDate(inv.created_at || '')}</div>
           <div><strong>Splatnost / Due:</strong> ${formatDate(inv.due_date)}</div>
         </div>
       </div>
@@ -1542,7 +1543,7 @@ window.downloadInvoice = async (id) => {
   doc.text('FAKTURA / INVOICE', 20, 20);
   doc.setFontSize(11);
   doc.text(`Číslo / #: ${inv.id}`, 20, 35);
-  doc.text(`Datum / Date: ${formatDate(inv.created_at)}`, 20, 42);
+  doc.text(`Datum / Date: ${formatDate(inv.created_at || '')}`, 20, 42);
   doc.text(`Splatnost / Due: ${formatDate(inv.due_date)}`, 20, 49);
 
   doc.setLineWidth(0.5);
