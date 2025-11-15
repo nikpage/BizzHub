@@ -128,7 +128,7 @@ class Database {
         { key: 'clients', endpoint: `clients?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
         { key: 'jobs', endpoint: `jobs?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
         { key: 'timesheets', endpoint: `timesheets?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
-        { key: 'invoices', endpoint: `invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*,job_id` },
+        { key: 'invoices', endpoint: `invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
         { key: 'business', endpoint: `business?user_id=eq.${this.userId}&select=*` }
       ];
 
@@ -302,9 +302,9 @@ class Database {
 
   async saveInvoice(invoice) {
     if (invoice.id) {
-      const existing = await this.getById('invoices', invoice.id);
+      const existing = await this.getInvoice(invoice.id);
       if (existing) {
-        return this.update('invoices', existing.id, invoice);
+        return this.update('invoices', invoice.id, invoice);
       }
     }
     return this.create('invoices', invoice);

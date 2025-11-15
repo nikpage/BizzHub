@@ -237,7 +237,12 @@ function renderDashboard(container) {
             const currency = client?.currency || 'CZK';
             let description = '';
             try {
-              const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
+              let items = [];
+try {
+  items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
+} catch (e) {
+  items = [];
+}
               description = items[0]?.description || '';
             } catch (e) {}
             const truncatedDesc = description.length > 30 ? description.substring(0, 30) + '...' : description;
