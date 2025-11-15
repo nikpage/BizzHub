@@ -169,10 +169,13 @@ class Database {
   }
 
   async create(table, record) {
+    // Remove id from record if it exists - let database generate it
+    const { id, ...recordWithoutId } = record;
+
     const data = await this.request(table, {
       method: 'POST',
       body: {
-        ...record,
+        ...recordWithoutId,
         user_id: this.userId,
         deleted: false,
         created_at: new Date().toISOString(),
@@ -263,10 +266,10 @@ class Database {
   }
 
   async saveJob(job) {
-    if (job.id) {
-      return await this.update('jobs', job.id, job);
-    }
-    return await this.create('jobs', job);
+    const saved = job.id
+      ? await this.update('jobs', job.id, job)
+      : await this.create('jobs', job);
+    return saved;
   }
 
   async deleteJob(id) {
