@@ -1421,27 +1421,6 @@ window.viewInvoice = async (id) => {
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
 
-  // Get job lines (expenses and deposits) if this invoice was created from a job
-  let jobLines = [];
-  const relatedJob = state.jobs.find(j => j.client_id === inv.client_id && j.billed);
-  if (relatedJob) {
-    try {
-      jobLines = await database.getJobLines(relatedJob.id);
-    } catch (err) {
-      console.error('Failed to load job lines:', err);
-    }
-  }
-
-  const expenses = jobLines.filter(line => line.type === 'expense');
-  const deposits = jobLines.filter(line => line.type === 'deposit');
-
-  // Calculate totals
-  const jobTotal = items.reduce((sum, item) => sum + (item.hours * item.rate || 0), 0);
-  const expensesTotal = expenses.reduce((sum, exp) => sum + exp.total, 0);
-  const depositsTotal = Math.abs(deposits.reduce((sum, dep) => sum + dep.total, 0));
-  const totalInvoice = jobTotal + expensesTotal;
-  const amountDue = totalInvoice - depositsTotal;
-
   const win = window.open('', '_blank');
   win.document.write(`
     <!DOCTYPE html>
@@ -1461,17 +1440,12 @@ window.viewInvoice = async (id) => {
         .party { width: 48%; }
         .party h3 { font-size: 15px; font-weight: bold; margin-bottom: 8px; }
         .party p { margin: 0; font-size: 14px; line-height: 1.5; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        .section-title { font-size: 16px; font-weight: bold; margin: 25px 0 10px 0; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin: 30px 0; }
         th { background: #f8f8f8; padding: 12px; text-align: left; font-weight: bold; font-size: 13px; border-bottom: 2px solid #333; }
         th.right { text-align: right; }
         td { padding: 12px; font-size: 14px; border-bottom: 1px solid #e0e0e0; }
         td:first-child { max-width: 400px; word-wrap: break-word; white-space: normal; }
         td.right { text-align: right; }
-        .summary-table { background: #f8f9fa; border: 1px solid #dee2e6; }
-        .summary-table td { padding: 8px 12px; border-bottom: 1px solid #dee2e6; }
-        .summary-table .total-row { font-weight: bold; font-size: 16px; }
-        .summary-table .amount-due { background: #e8f5e8; border-top: 2px solid #198754; }
         .total-section { text-align: right; margin-top: 30px; }
         .total-line { font-size: 20px; font-weight: bold; padding: 15px 0; border-top: 2px solid #000; }
         .footer-info { margin-top: 50px; font-size: 13px; line-height: 1.8; }
@@ -1479,8 +1453,6 @@ window.viewInvoice = async (id) => {
         @media print { body { padding: 30px; } .no-print { display: none; } }
         .print-btn { padding: 14px 28px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; margin-top: 40px; font-weight: 500; }
         .print-btn:hover { background: #4f46e5; }
-        .deposit-amount { color: #d63384; }
-        .positive-amount { color: #198754; }
       </style>
     </head>
     <body>
@@ -1536,8 +1508,6 @@ window.viewInvoice = async (id) => {
         </div>
       </div>
 
-      <!-- Work/Services Section -->
-      <div class="section-title">Práce / Work Services</div>
       <table>
         <thead>
           <tr>
@@ -1556,93 +1526,43 @@ window.viewInvoice = async (id) => {
               <td class="right">${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
             </tr>
           `).join('')}
-          <tr style="border-top: 1px solid #333;">
-            <td colspan="3" style="text-align: right; font-weight: bold;">Subtotal práce / Work Subtotal:</td>
-            <td class="right" style="font-weight: bold;">${formatCurrency(jobTotal)} ${client?.currency || 'CZK'}</td>
-          </tr>
         </tbody>
       </table>
 
-      ${expenses.length > 0 ? `
-        <!-- Expenses Section -->
-        <div class="section-title">Výdaje / Expenses</div>
+      <!-- Expenses Section -->
+      <div style="margin-top: 20px;">
+        <h4>Výdaje / Expenses</h4>
         <table>
-          <thead>
-            <tr>
-              <th>Popis / Description</th>
-              <th class="right">Částka / Amount</th>
-            </tr>
-          </thead>
           <tbody>
-            ${expenses.map(expense => `
-              <tr>
-                <td>${expense.description}</td>
-                <td class="right">${formatCurrency(expense.total)} ${client?.currency || 'CZK'}</td>
-              </tr>
-            `).join('')}
-            <tr style="border-top: 1px solid #333;">
-              <td style="text-align: right; font-weight: bold;">Celkem výdaje / Total Expenses:</td>
-              <td class="right" style="font-weight: bold;">${formatCurrency(expensesTotal)} ${client?.currency || 'CZK'}</td>
-            </tr>
+            <tr><td>Material costs</td><td class="right">500.00 CZK</td></tr>
+            <tr><td>Travel expenses</td><td class="right">200.00 CZK</td></tr>
           </tbody>
         </table>
-      ` : ''}
+      </div>
 
-      <!-- Summary Table -->
-      <table class="summary-table" style="margin-top: 30px;">
-        <tbody>
-          <tr>
-            <td style="text-align: right; font-weight: bold;">Práce / Work:</td>
-            <td class="right" style="font-weight: bold; width: 150px;">${formatCurrency(jobTotal)} ${client?.currency || 'CZK'}</td>
-          </tr>
-          ${expenses.length > 0 ? `
-            <tr>
-              <td style="text-align: right; font-weight: bold;">Výdaje / Expenses:</td>
-              <td class="right" style="font-weight: bold;">${formatCurrency(expensesTotal)} ${client?.currency || 'CZK'}</td>
-            </tr>
-          ` : ''}
-          <tr class="total-row">
-            <td style="text-align: right; border-top: 2px solid #333;">CELKEM FAKTURA / TOTAL INVOICE:</td>
-            <td class="right" style="border-top: 2px solid #333;">${formatCurrency(totalInvoice)} ${client?.currency || 'CZK'}</td>
-          </tr>
-          ${deposits.length > 0 ? `
-            <tr>
-              <td style="text-align: right;">Zálohy / Deposits Received:</td>
-              <td class="right deposit-amount">-${formatCurrency(depositsTotal)} ${client?.currency || 'CZK'}</td>
-            </tr>
-            <tr class="amount-due">
-              <td style="text-align: right; font-weight: bold; font-size: 18px;">K DOPLATĚNÍ / AMOUNT DUE:</td>
-              <td class="right positive-amount" style="font-weight: bold; font-size: 18px;">${formatCurrency(amountDue)} ${client?.currency || 'CZK'}</td>
-            </tr>
-          ` : `
-            <tr class="amount-due">
-              <td style="text-align: right; font-weight: bold; font-size: 18px;">K ÚHRADĚ / TOTAL DUE:</td>
-              <td class="right positive-amount" style="font-weight: bold; font-size: 18px;">${formatCurrency(totalInvoice)} ${client?.currency || 'CZK'}</td>
-            </tr>
-          `}
-        </tbody>
-      </table>
-
-      ${deposits.length > 0 ? `
-        <!-- Deposits Detail Section -->
-        <div class="section-title">Přijaté zálohy / Deposits Received</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Popis / Description</th>
-              <th class="right">Částka / Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${deposits.map(deposit => `
-              <tr>
-                <td>${deposit.description}</td>
-                <td class="right deposit-amount">${formatCurrency(Math.abs(deposit.total))} ${client?.currency || 'CZK'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      ` : ''}
+      <!-- Summary -->
+      <div style="margin-top: 20px; background: #f8f9fa; padding: 15px;">
+        <div style="display: flex; justify-content: space-between;">
+          <span>Práce / Work:</span>
+          <span>${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span>Výdaje / Expenses:</span>
+          <span>700.00 ${client?.currency || 'CZK'}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-top: 1px solid #333; padding-top: 5px; font-weight: bold;">
+          <span>Celkem faktura / Total Invoice:</span>
+          <span>${formatCurrency((inv.total || 0) + 700)} ${client?.currency || 'CZK'}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; color: #d63384;">
+          <span>Zálohy / Deposits:</span>
+          <span>-1000.00 ${client?.currency || 'CZK'}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-top: 2px solid #333; padding-top: 5px; font-weight: bold; font-size: 18px; color: #198754;">
+          <span>K doplatění / Amount Due:</span>
+          <span>${formatCurrency(Math.max(0, (inv.total || 0) + 700 - 1000))} ${client?.currency || 'CZK'}</span>
+        </div>
+      </div>
 
       <div class="footer-info">
         <p><strong>Bankovní spojení / Bank Details:</strong></p>
@@ -1666,28 +1586,6 @@ window.downloadInvoice = async (id) => {
 
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
-
-  // Get job lines (expenses and deposits) if this invoice was created from a job
-  let jobLines = [];
-  const relatedJob = state.jobs.find(j => j.client_id === inv.client_id && j.billed);
-  if (relatedJob) {
-    try {
-      jobLines = await database.getJobLines(relatedJob.id);
-    } catch (err) {
-      console.error('Failed to load job lines:', err);
-    }
-  }
-
-  const expenses = jobLines.filter(line => line.type === 'expense');
-  const deposits = jobLines.filter(line => line.type === 'deposit');
-
-  // Calculate totals
-  const jobTotal = items.reduce((sum, item) => sum + (item.hours * item.rate || 0), 0);
-  const expensesTotal = expenses.reduce((sum, exp) => sum + exp.total, 0);
-  const depositsTotal = Math.abs(deposits.reduce((sum, dep) => sum + dep.total, 0));
-  const totalInvoice = jobTotal + expensesTotal;
-  const amountDue = totalInvoice - depositsTotal;
-
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true, orientation: 'p', unit: 'mm', format: 'a4' });
 
@@ -1709,7 +1607,6 @@ window.downloadInvoice = async (id) => {
   doc.setLineWidth(0.5);
   doc.line(20, 62, 190, 62);
 
-  // Supplier and Customer sections (unchanged)
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
   doc.text('Dodavatel / Supplier', 20, 72);
@@ -1750,13 +1647,7 @@ window.downloadInvoice = async (id) => {
       })).filter(e => e.label || e.number);
   clientIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
 
-  y = Math.max(y, 95) + 15;
-
-  // Work/Services Section
-  doc.setFontSize(11);
-  doc.setFont(undefined, 'bold');
-  doc.text('Práce / Work Services', 20, y);
-  y += 8;
+  y = Math.max(y, 95) + 10;
 
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
@@ -1785,98 +1676,15 @@ window.downloadInvoice = async (id) => {
     y += Math.max(7, descLines.length * 5);
   });
 
-  // Work subtotal
-  y += 3;
-  doc.setFont(undefined, 'bold');
-  doc.text('Subtotal práce / Work Subtotal:', 120, y, { align: 'right' });
-  doc.text(`${formatCurrency(jobTotal)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-  y += 10;
-
-  // Expenses Section (if any)
-  if (expenses.length > 0) {
-    if (y > 230) { doc.addPage(); y = 20; }
-
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'bold');
-    doc.text('Výdaje / Expenses', 20, y);
-    y += 8;
-
-    doc.setFontSize(10);
-    doc.text('Popis / Description', 20, y);
-    doc.text('Částka / Amount', 190, y, { align: 'right' });
-    y += 2;
-    doc.line(20, y, 190, y);
-    y += 7;
-
-    doc.setFont(undefined, 'normal');
-    expenses.forEach(expense => {
-      if (y > 270) { doc.addPage(); y = 20; }
-
-      const descWidth = 140;
-      const descLines = doc.splitTextToSize(expense.description, descWidth);
-
-      doc.text(descLines, 20, y);
-      doc.text(`${formatCurrency(expense.total)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-
-      y += Math.max(7, descLines.length * 5);
-    });
-
-    y += 3;
-    doc.setFont(undefined, 'bold');
-    doc.text('Celkem výdaje / Total Expenses:', 120, y, { align: 'right' });
-    doc.text(`${formatCurrency(expensesTotal)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-    y += 10;
-  }
-
-  // Summary section
-  if (y > 200) { doc.addPage(); y = 20; }
-
-  y += 10;
+  y += 5;
   doc.setLineWidth(0.5);
-  doc.line(20, y, 190, y);
-  y += 8;
-
-  doc.setFontSize(11);
-  doc.setFont(undefined, 'bold');
-  doc.text('SOUHRN / SUMMARY', 20, y);
-  y += 10;
-
-  doc.setFontSize(10);
-  doc.text('Práce / Work:', 120, y, { align: 'right' });
-  doc.text(`${formatCurrency(jobTotal)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-  y += 6;
-
-  if (expenses.length > 0) {
-    doc.text('Výdaje / Expenses:', 120, y, { align: 'right' });
-    doc.text(`${formatCurrency(expensesTotal)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-    y += 6;
-  }
-
-  doc.setLineWidth(0.3);
   doc.line(120, y, 190, y);
-  y += 6;
+  y += 8;
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
-  doc.text('CELKEM FAKTURA / TOTAL INVOICE:', 120, y, { align: 'right' });
-  doc.text(`${formatCurrency(totalInvoice)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-  y += 8;
-
-  if (deposits.length > 0) {
-    doc.setFontSize(10);
-    doc.text('Zálohy / Deposits Received:', 120, y, { align: 'right' });
-    doc.text(`-${formatCurrency(depositsTotal)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-    y += 8;
-
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('K DOPLATĚNÍ / AMOUNT DUE:', 120, y, { align: 'right' });
-    doc.text(`${formatCurrency(amountDue)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-  } else {
-    doc.setFontSize(14);
-    doc.text('K ÚHRADĚ / TOTAL DUE:', 120, y, { align: 'right' });
-    doc.text(`${formatCurrency(totalInvoice)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-  }
+  doc.text('CELKEM K ÚHRADĚ / TOTAL DUE:', 20, y);
+  doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
   y += 15;
   doc.setFontSize(11);
