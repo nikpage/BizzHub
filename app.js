@@ -1209,7 +1209,11 @@ async function createInvoiceFromJob(jobId) {
     await database.saveInvoice(invoiceData);
     await database.saveJob({ ...job, billed: true });
     await loadData();
-    showView('dashboard');
+    if (state.currentView === 'dashboard') {
+      renderDashboard(document.getElementById('mainView'));
+    } else {
+      showView('dashboard');
+    }
     showToast('Invoice created successfully');
   } catch (err) {
     console.error('Failed to create invoice:', err);
