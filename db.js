@@ -336,7 +336,8 @@ class Database {
             user_id: this.userId,
             type: line.type,
             description: line.description,
-            amount: line.amount,
+            quantity: 1,
+            unit_price: line.amount,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }
