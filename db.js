@@ -132,12 +132,7 @@ class Database {
         { key: 'business', endpoint: `business?user_id=eq.${this.userId}&select=*` }
       ];
 
-      const results = await this.batchRequest(requests);
-      this.setCache(cacheKey, results);
-      return results;
-    } catch (e) {
-      // Fallback to parallel requests if batch endpoint doesn't exist
-      console.warn('[DB] Batch endpoint unavailable, using parallel requests');
+      console.info('[DB] Loading dashboard via parallel requests');
       const [clients, jobs, timesheets, invoices, business] = await Promise.all([
         this.request(`clients?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
         this.request(`jobs?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
@@ -146,11 +141,15 @@ class Database {
         this.request(`business?user_id=eq.${this.userId}&select=*`)
       ]);
 
-      const results = { clients, jobs, timesheets, invoices, business: business[0] || null };
+      const results = {
+        clients,
+        jobs,
+        timesheets,
+        invoices,
+        business: business[0] || null
+      };
       this.setCache(cacheKey, results);
       return results;
-    }
-  }
 
   async getAll(table) {
     const cacheKey = this.getCacheKey(`${table}:all`);
