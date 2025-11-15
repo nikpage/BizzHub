@@ -1156,21 +1156,10 @@ async function createInvoiceFromJob(jobId) {
     return;
   }
 
-  // Get job lines (expenses and deposits)
-  const jobLines = await database.getJobLines(jobId);
-  const expenses = jobLines.filter(line => line.type === 'expense');
-  const deposits = jobLines.filter(line => line.type === 'deposit');
-
   const hours = parseFloat(job.hours) || 0;
   const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
   const currency = job.currency || client.currency || 'CZK';
-  const jobAmount = hours * rate;
-
-  // Calculate totals
-  const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.total || 0), 0);
-  const totalDeposits = Math.abs(deposits.reduce((sum, dep) => sum + parseFloat(dep.total || 0), 0));
-  const totalInvoice = jobAmount + totalExpenses;
-  const amountDue = totalInvoice - totalDeposits;
+  const total = hours * rate;
 
   let dateRange = '';
   if (job.start_date && job.end_date) {
@@ -1184,33 +1173,6 @@ async function createInvoiceFromJob(jobId) {
   if (job.address) descParts.push(job.address);
   if (dateRange) descParts.push(dateRange);
   const fullDescription = descParts.join('\n');
-
-  // Build items array with job, expenses, and deposits
-  const items = [];
-
-  // Main job item
-  items.push({
-    description: fullDescription,
-    hours: hours,
-    rate: rate,
-    amount: jobAmount
-  });
-
-  // Add expenses
-  expenses.forEach(expense => {
-    items.push({
-      description: `${t('expenses')}: ${expense.description}`,
-      amount: parseFloat(expense.total || 0)
-    });
-  });
-
-  // Add deposits (shown as negative)
-  deposits.forEach(deposit => {
-    items.push({
-      description: `${t('deposits')}: ${deposit.description}`,
-      amount: parseFloat(deposit.total || 0)
-    });
-  });
 
   // Generate invoice ID in format YYMMDD-II
   const now = new Date();
@@ -1234,19 +1196,14 @@ async function createInvoiceFromJob(jobId) {
     id: invoiceId,
     client_id: job.client_id,
     job_id: jobId,
-    items: JSON.stringify(items),
-    subtotal: totalInvoice,
-    total: amountDue,
-    currency: currency,
+    items: JSON.stringify([{
+      description: fullDescription,
+      hours: hours,
+      rate: rate
+    }]),
+    total: total,
     status: 'unpaid',
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    meta: JSON.stringify({
-      jobAmount: jobAmount,
-      totalExpenses: totalExpenses,
-      totalDeposits: totalDeposits,
-      totalInvoice: totalInvoice,
-      amountDue: amountDue
-    })
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   };
 
   try {
