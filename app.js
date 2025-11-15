@@ -245,16 +245,6 @@ function renderDashboard(container) {
               <td title="${description}">${truncatedDesc || '-'}</td>
               <td>${t('invoice')}</td>
               <td>${formatCurrency(inv.total || 0)} ${currency}</td>
-              <td><span class="status-badge status-${inv.status}">${t(inv.status || 'unpaid')}</span></td>
-              <td>
-                <button onclick="previewInvoice(${inv.id})" class="btn-icon" title="${t('preview')}">👁</button>
-                <button onclick="downloadInvoice(${inv.id})" class="btn-icon" title="${t('download')}">💾</button>
-                <button onclick="markPaid(${inv.id})" class="btn-icon" title="${t('markPaid')}">✓</button>
-                <button onclick="deleteInvoice(${inv.id})" class="btn-icon" title="${t('delete')}">🗑</button>
-              </td>
-            </tr>
-            `;
-              <td>${formatCurrency(inv.total || 0)} ${currency}</td>
               <td>
                 <span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}">
                   ${t(inv.status || 'pending')}
