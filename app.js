@@ -738,6 +738,10 @@ function showJobForm(jobId = null) {
           <input type="text" name="name" value="${job.name || ''}" required autocomplete="off">
         </div>
 
+      </div>
+
+      <!-- Description and Address on same row -->
+      <div class="form-grid">
         <div class="form-group">
           <label>${t('jobDescription')}</label>
           <textarea name="description" rows="3">${job.description || ''}</textarea>
@@ -747,6 +751,10 @@ function showJobForm(jobId = null) {
           <label>${t('address')}</label>
           <textarea name="address" rows="3">${job.address || ''}</textarea>
         </div>
+      </div>
+
+      <!-- Continue with dates and other fields -->
+      <div class="form-grid">
 
         <div class="form-group">
           <label>${t('startDate')}</label>
@@ -786,23 +794,18 @@ function showJobForm(jobId = null) {
 
       </div>
 
-      <!-- Job Amount Display -->
-      <div class="job-amount-display" style="background: #fff3cd; padding: 10px; margin: 15px 0; border: 1px solid #856404;">
-        <strong>${t('jobAmount')}:</strong> <span id="jobAmountCalc">0.00</span>
-      </div>
-
       <!-- Expenses Section -->
       <div class="form-section">
         <h4>${t('expenses')}</h4>
         <div id="expensesList"></div>
-        <button type="button" class="add-line-btn" onclick="addExpenseLine()">${t('addExpense')}</button>
+        <button type="button" class="btn btn-secondary" onclick="addExpenseLine()">${t('addExpense')}</button>
       </div>
 
       <!-- Deposits Section -->
       <div class="form-section">
         <h4>${t('deposits')}</h4>
         <div id="depositsList"></div>
-        <button type="button" class="add-line-btn" onclick="addDepositLine()">${t('addDeposit')}</button>
+        <button type="button" class="btn btn-secondary" onclick="addDepositLine()">${t('addDeposit')}</button>
       </div>
 
       <!-- Totals Section -->
@@ -911,16 +914,16 @@ function addExpenseLine(description = '', amount = '') {
   const lineHtml = `
     <div class="line-item" id="${lineId}">
       <input type="text" placeholder="${t('expenseDescription')}" value="${description}"
-             onchange="updateCalculations()" style="flex: 1; margin-right: 10px;">
+             onchange="window.updateCalculations()" style="flex: 1; margin-right: 10px;">
       <input type="number" step="0.01" placeholder="0.00" value="${amount}"
-             onchange="updateCalculations()" style="width: 100px; margin-right: 10px;">
+             onchange="window.updateCalculations()" style="width: 100px; margin-right: 10px;">
       <button type="button" onclick="removeLine('${lineId}')"
               style="padding: 5px 8px; background: #dc3545; color: white; border: none; cursor: pointer;">×</button>
     </div>
   `;
 
   expensesList.insertAdjacentHTML('beforeend', lineHtml);
-  updateCalculations();
+  window.updateCalculations();
 }
 
 function addDepositLine(description = '', amount = '') {
@@ -930,21 +933,21 @@ function addDepositLine(description = '', amount = '') {
   const lineHtml = `
     <div class="line-item" id="${lineId}">
       <input type="text" placeholder="${t('depositDescription')}" value="${description}"
-             onchange="updateCalculations()" style="flex: 1; margin-right: 10px;">
+             onchange="window.updateCalculations()" style="flex: 1; margin-right: 10px;">
       <input type="number" step="0.01" placeholder="0.00" value="${amount}"
-             onchange="updateCalculations()" style="width: 100px; margin-right: 10px;">
+             onchange="window.updateCalculations()" style="width: 100px; margin-right: 10px;">
       <button type="button" onclick="removeLine('${lineId}')"
               style="padding: 5px 8px; background: #dc3545; color: white; border: none; cursor: pointer;">×</button>
     </div>
   `;
 
   depositsList.insertAdjacentHTML('beforeend', lineHtml);
-  updateCalculations();
+  window.updateCalculations();
 }
 
 function removeLine(lineId) {
   document.getElementById(lineId)?.remove();
-  updateCalculations();
+  window.updateCalculations();
 }
 
 function collectLineItems(type) {
@@ -1004,11 +1007,6 @@ function updateCalculations() {
   const amountDue = totalInvoice - totalDeposits;
 
   // Update displays
-  const jobAmountCalc = document.getElementById('jobAmountCalc');
-  if (jobAmountCalc) {
-    jobAmountCalc.textContent = formatCurrency(jobAmount);
-  }
-
   const displayJobAmount = document.getElementById('displayJobAmount');
   if (displayJobAmount) {
     displayJobAmount.textContent = formatCurrency(jobAmount);
@@ -1026,7 +1024,7 @@ function updateCalculations() {
 
   const displayTotalDeposits = document.getElementById('displayTotalDeposits');
   if (displayTotalDeposits) {
-    displayTotalDeposits.textContent = '-' + formatCurrency(totalDeposits);
+    displayTotalDeposits.textContent = totalDeposits > 0 ? '-' + formatCurrency(totalDeposits) : '-' + formatCurrency(0);
   }
 
   const displayAmountDue = document.getElementById('displayAmountDue');
@@ -1057,6 +1055,7 @@ async function loadJobLines(jobId) {
 window.addExpenseLine = addExpenseLine;
 window.addDepositLine = addDepositLine;
 window.removeLine = removeLine;
+window.updateCalculations = updateCalculations;
 
 
 function showTimesheetForm(timesheetId = null) {

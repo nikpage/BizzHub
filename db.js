@@ -329,11 +329,17 @@ class Database {
 
     if (allLines.length > 0) {
       for (const line of allLines) {
-        await this.create('job_lines', {
-          job_id: jobId,
-          type: line.type,
-          description: line.description,
-          total: line.total
+        await this.request('job_lines', {
+          method: 'POST',
+          body: {
+            job_id: jobId,
+            user_id: this.userId,
+            type: line.type,
+            description: line.description,
+            total: line.total,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
         });
       }
     }
