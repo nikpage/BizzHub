@@ -1533,10 +1533,10 @@ window.viewInvoice = async (id) => {
       <div style="margin-top: 20px;">
         <h4>Výdaje / Expenses</h4>
         <table>
-          <tbody>
-            <tr><td>Material costs</td><td class="right">500.00 CZK</td></tr>
-            <tr><td>Travel expenses</td><td class="right">200.00 CZK</td></tr>
-          </tbody>
+
+        <div class="total-section">
+          <div class="total-line">${t('totalDue')}: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
+        </div>
         </table>
       </div>
 
