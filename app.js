@@ -1162,6 +1162,9 @@ async function createInvoiceFromJob(jobId) {
   const client = state.clients.find(c => c.id === job.client_id);
   if (!client) return showToast('Client not found', 'error');
 
+  // Reload invoices to get accurate count for ID generation
+  state.invoices = await database.getInvoices();
+
   const hours = parseFloat(job.hours) || 0;
   const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
   const currency = job.currency || client.currency || 'CZK';
