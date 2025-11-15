@@ -1,642 +1,369 @@
-import { t, setLanguage, LANG } from './lang.js';
-import { database } from './db.js';
+// Supabase Database Adapter for BizzHub - COMPLETE and SECURE
+import { NetlifyIdentity } from 'netlify-identity-widget';
 
-// App State
-const state = {
-  currentView: 'dashboard',
-  currentUser: null,
-  clients: [],
-  jobs: [],
-  timesheets: [],
-  invoices: [],
-  profile: null,
-  // All new data models added and initialized
-  expenses: [],
-  todos: [],
-  trash: [],
-  showBilledJobs: true,
-};
-
-// --- Utility Functions ---
-
-function formatCurrency(amount, currency = 'USD') {
-  return amount.toLocaleString(navigator.language, {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  const date = new Date(dateString);
-  return date.toLocaleDateString(navigator.language, { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-function showToast(message, type = 'success') {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className = `toast toast-${type} active`;
-    setTimeout(() => {
-        toast.className = 'toast';
-    }, 4000);
-}
-
-function hideToast() {
-    document.getElementById('toast').className = 'toast';
-}
-
-// --- Core Data Loading ---
-
-async function loadData() {
-  showToast(t('loading'), 'info');
-  database.clearCache(); // Ensure fresh data fetch
-
-  try {
-    const [clients, jobs, timesheets, invoices, profile, expenses, todos, trash] = await database.requestBatch({
-      clients: `clients?deleted=eq.false&order=name.asc&select=*`,
-      jobs: `jobs?deleted=eq.false&order=created_at.desc&select=*`,
-      timesheets: `timesheets?deleted=eq.false&order=date.desc&select=*`,
-      invoices: `invoices?deleted=eq.false&order=date_issued.desc&select=*`,
-      profile: `business?select=*`,
-      expenses: `expenses?order=date.desc&select=*`,
-      todos: `todos?order=created_at.desc&select=*`,
-      trash: `trash?select=*` // The database.getTrash() method handles aggregation, so we can't use batch for trash directly
-    });
-
-    state.clients = clients || [];
-    state.jobs = jobs || [];
-    state.timesheets = timesheets || [];
-    state.invoices = invoices || [];
-    state.profile = profile || null;
-    state.expenses = expenses || [];
-    state.todos = todos || [];
-    state.trash = await database.getTrash(); // Fetch trash separately to aggregate soft-deleted items
-
-    // Ensure state arrays/objects are populated correctly
-    console.log('All data loaded successfully.');
-    hideToast();
-    showView(state.currentView);
-
-  } catch (error) {
-    console.error('Error loading data:', error);
-    showToast(`${t('error')}: ${error.message}`, 'danger');
-    if (error.message.includes('Not authenticated')) {
-        setTimeout(() => window.netlifyIdentity.logout(), 2000);
-    }
+class Database {
+  constructor() {
+    this.userId = null;
+    this.cache = {};
+    this.cacheTimeout = 30000; // 30 seconds
   }
-}
 
-// --- View Rendering Logic (Complete) ---
+  setUser(userId) {
+    this.userId = userId;
+    this.cache = {}; // Clear cache on user change
+  }
 
-function showView(view) {
-    state.currentView = view;
-    // Update active nav tab
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.classList.remove('active');
-        if (tab.getAttribute('data-view') === view) {
-            tab.classList.add('active');
-        }
-    });
+  getCacheKey(endpoint) {
+    return `${this.userId}:${endpoint}`;
+  }
 
-    const mainView = document.getElementById('mainView');
-    mainView.innerHTML = '';
-
-    let content;
-
-    switch (view) {
-        case 'dashboard':
-            content = renderDashboard();
-            break;
-        case 'clients':
-            content = renderClients();
-            break;
-        case 'jobs':
-            content = renderJobs();
-            break;
-        case 'worklogs':
-            content = renderWorkLogs();
-            break;
-        case 'trash':
-            content = renderTrash();
-            break;
-        default:
-            content = `<div class="empty-state"><h2>404</h2><p>${t('pageNotFound')}</p></div>`;
+  getFromCache(key) {
+    const cached = this.cache[key];
+    if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+      console.info('[DB] CACHE HIT ->', key);
+      return cached.data;
     }
-    mainView.innerHTML = content;
-}
+    return null;
+  }
 
-function renderDashboard() {
-    const totalInvoiced = state.invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-    const totalPaid = state.invoices.filter(i => i.status === 'paid').reduce((sum, inv) => sum + (inv.total || 0), 0);
-    const totalExpenses = state.expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-    const clientCount = state.clients.length;
-    const todosCount = state.todos.filter(t => !t.is_completed).length;
+  setCache(key, data) {
+    this.cache[key] = { data, timestamp: Date.now() };
+  }
 
-    return `
-        <h2>${t('dashboard')}</h2>
-        <div class="stats-grid">
-            <div class="stat-card"><h3>${t('totalInvoiced')}</h3><p>${formatCurrency(totalInvoiced, state.profile?.currency || 'USD')}</p></div>
-            <div class="stat-card"><h3>${t('totalReceived')}</h3><p>${formatCurrency(totalPaid, state.profile?.currency || 'USD')}</p></div>
-            <div class="stat-card"><h3>${t('totalExpenses')}</h3><p>${formatCurrency(totalExpenses, state.profile?.currency || 'USD')}</p></div>
-            <div class="stat-card"><h3>${t('todos')} (${t('pending')})</h3><p>${todosCount}</p></div>
-        </div>
+  clearCache(pattern) {
+    if (!pattern) {
+      this.cache = {};
+      return;
+    }
+    Object.keys(this.cache).forEach(key => {
+      if (key.includes(pattern)) delete this.cache[key];
+    });
+  }
 
-        <h3>${t('invoices')} (${t('unpaid')})</h3>
-        <div class="cards-grid">
-            ${state.invoices.filter(i => i.status !== 'paid' && !i.deleted).map(inv => `
-                <div class="card">
-                    <h4>${inv.id} - ${state.clients.find(c => c.id === inv.client_id)?.name || 'Unknown Client'}</h4>
-                    <p><strong>${t('total')}:</strong> ${formatCurrency(inv.total, inv.currency)}</p>
-                    <p><strong>${t('dueDate')}:</strong> ${formatDate(inv.due_date)}</p>
-                    <div class="card-actions">
-                        <button class="btn-secondary" onclick="downloadPDF('${inv.id}')">${t('downloadPdf')}</button>
-                        <button class="btn-success" onclick="markInvoicePaid('${inv.id}')">${t('markPaid')}</button>
-                    </div>
-                </div>
-            `).join('')}
-            ${state.invoices.filter(i => i.status !== 'paid' && !i.deleted).length === 0 ? `<div class="empty-state">${t('noData')}</div>` : ''}
-        </div>
+  /**
+   * Universal request handler. Always POSTs to the secure Netlify proxy function.
+   * @param {string} endpoint - The Supabase table endpoint (e.g., 'clients?select=*').
+   * @param {object} options - Request options including method and body.
+   */
+  async request(endpoint, options = {}) {
+    console.info('[DB] REQUEST ->', { endpoint, options });
 
-        <h3>${t('todos')}</h3>
-        <div id="todoList" class="card-list">
-            <input type="text" id="newTodoTitle" placeholder="${t('addTodo')}" class="form-control" onkeypress="handleNewTodo(event)">
-            ${state.todos.sort((a,b) => a.created_at < b.created_at ? -1 : 1).map(todo =>
-                `<div class="todo-item card ${todo.is_completed ? 'completed' : ''}">
-                    <input type="checkbox" ${todo.is_completed ? 'checked' : ''} onchange="toggleTodo('${todo.id}', ${!todo.is_completed})">
-                    <span>${todo.title}</span>
-                    <button class="btn-icon btn-danger" onclick="deleteTodo('${todo.id}')">❌</button>
-                </div>`
-            ).join('')}
-        </div>
-    `;
-}
+    const token = NetlifyIdentity.currentUser()?.token?.access_token;
+    if (!token) throw new Error('Authentication token not available. User must log in.');
 
-function renderClients() {
-    return `
-        <h2>${t('clients')}</h2>
-        <button class="btn-primary" onclick="openClientModal()">${t('addClient')}</button>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>${t('clientName')}</th>
-                    <th>${t('email')}</th>
-                    <th>${t('rate')}</th>
-                    <th>${t('currency')}</th>
-                    <th>${t('actions')}</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${state.clients.map(client => `
-                    <tr>
-                        <td>${client.name}</td>
-                        <td>${client.admin_email || client.invoice_email || '-'}</td>
-                        <td>${client.rate} / ${client.rate_type}</td>
-                        <td>${client.currency}</td>
-                        <td>
-                            <button class="btn-secondary" onclick="openClientModal('${client.id}')">${t('edit')}</button>
-                            <button class="btn-danger" onclick="deleteClient('${client.id}')">${t('delete')}</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-        ${state.clients.length === 0 ? `<div class="empty-state">${t('noData')}</div>` : ''}
-    `;
-}
+    const cacheKey = this.getCacheKey(endpoint);
+    const method = options.method || 'GET';
 
-function renderJobs() {
-    return `
-        <h2>${t('jobs')}</h2>
-        <button class="btn-primary" onclick="openJobModal()">${t('addJob')}</button>
-        <div class="filter-controls">
-            <label>
-                <input type="checkbox" id="showBilledJobsToggle" ${state.showBilledJobs ? 'checked' : ''} onchange="toggleBilledJobs(this.checked)">
-                ${t('showBilledJobs')}
-            </label>
-        </div>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>${t('name')}</th>
-                    <th>${t('client')}</th>
-                    <th>${t('startEnd')}</th>
-                    <th>${t('rate')}</th>
-                    <th>${t('status')}</th>
-                    <th>${t('actions')}</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${state.jobs.filter(job => state.showBilledJobs || !job.billed).map(job => `
-                    <tr>
-                        <td>${job.name}</td>
-                        <td>${state.clients.find(c => c.id === job.client_id)?.name || 'Unknown'}</td>
-                        <td>${formatDate(job.start_date)} - ${formatDate(job.end_date)}</td>
-                        <td>${job.rate} / ${job.rate_type} (${job.currency})</td>
-                        <td><span class="badge ${job.billed ? 'badge-success' : 'badge-warning'}">${job.billed ? t('billed') : t('unbilled')}</span></td>
-                        <td>
-                            <button class="btn-secondary" onclick="openJobModal('${job.id}')">${t('edit')}</button>
-                            <button class="btn-danger" onclick="deleteJob('${job.id}')">${t('delete')}</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-        ${state.jobs.filter(job => state.showBilledJobs || !job.billed).length === 0 ? `<div class="empty-state">${t('noData')}</div>` : ''}
-    `;
-}
+    if (method === 'GET') {
+      const cached = this.getFromCache(cacheKey);
+      if (cached) return cached;
+    }
 
-function renderWorkLogs() {
-    return `
-        <h2>${t('worklogs')}</h2>
-        <button class="btn-primary" onclick="openTimesheetModal()">${t('addWorklog')}</button>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>${t('date')}</th>
-                    <th>${t('client')}</th>
-                    <th>${t('hours')}</th>
-                    <th>${t('notes')}</th>
-                    <th>${t('status')}</th>
-                    <th>${t('actions')}</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${state.timesheets.map(ts => `
-                    <tr>
-                        <td>${formatDate(ts.date)}</td>
-                        <td>${state.clients.find(c => c.id === ts.client_id)?.name || 'Unknown'}</td>
-                        <td>${ts.hours}</td>
-                        <td>${ts.notes}</td>
-                        <td><span class="badge ${ts.billed ? 'badge-success' : 'badge-warning'}">${ts.billed ? t('billed') : t('unbilled')}</span></td>
-                        <td>
-                            <button class="btn-secondary" onclick="openTimesheetModal('${ts.id}')">${t('edit')}</button>
-                            <button class="btn-danger" onclick="deleteTimesheet('${ts.id}')">${t('delete')}</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-        ${state.timesheets.length === 0 ? `<div class="empty-state">${t('noData')}</div>` : ''}
-    `;
-}
+    let res;
+    try {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` // Netlify Identity token for proxy validation
+      };
 
-function renderTrash() {
-    return `
-        <h2>${t('trash')} (${state.trash.length})</h2>
-        <p class="text-muted">${t('trashInfo')}</p>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>${t('type')}</th>
-                    <th>${t('name')}</th>
-                    <th>${t('deletedOn')}</th>
-                    <th>${t('actions')}</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${state.trash.map(item => `
-                    <tr>
-                        <td>${t(item._table)}</td>
-                        <td>${item.name || item.id}</td>
-                        <td>${formatDate(item.updated_at)}</td>
-                        <td>
-                            <button class="btn-secondary" onclick="restoreItem('${item._table}', '${item.id}')">${t('restore')}</button>
-                            <button class="btn-danger" onclick="deleteForever('${item._table}', '${item.id}')">${t('deleteForever')}</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-        ${state.trash.length === 0 ? `<div class="empty-state">${t('noData')}</div>` : ''}
-    `;
-}
+      const proxyPayload = {
+          endpoint: endpoint, // Supabase endpoint
+          method: method,     // Intended Supabase method (GET, POST, PATCH, DELETE)
+          body: options.body  // The data payload
+      };
 
-// --- Global Functions (Exposed for HTML Event Handlers) ---
+      const url = `${baseUrl}/.netlify/functions/db-proxy`;
 
-// PDF Generation (Using window.jspdf.jsPDF as implied by app.html)
-window.downloadPDF = async (invoiceId) => {
-  showToast(t('generatingPdf'), 'info');
+      res = await fetch(url, {
+        method: 'POST', // The actual method for the proxy function
+        headers: headers,
+        body: JSON.stringify(proxyPayload)
+      });
 
-  const inv = state.invoices.find(i => i.id === invoiceId);
-  if (!inv) return showToast(t('error') + ': Invoice not found', 'danger');
-
-  // Need to fetch job details for line items if not present in invoice.items
-  let job = null;
-  if (inv.job_id) {
-      try {
-          // Use the secure getJob method which fetches job_lines
-          job = await database.getJob(inv.job_id);
-      } catch (e) {
-          console.error("Error fetching job for invoice:", e);
+      if (!res.ok) {
+        let errorData;
+        try {
+            errorData = await res.json();
+        } catch (e) {
+            throw new Error(`DB Error: ${res.status} - Failed to parse error response.`);
+        }
+        throw new Error(`DB Error: ${res.status} - ${errorData.message || res.statusText || 'Unknown Error'}`);
       }
-  }
 
-  const client = state.clients.find(c => c.id === inv.client_id);
-  const profile = state.profile;
-  const items = inv.items && inv.items.length > 0 ? inv.items : (job?.job_lines || []);
+      const data = await res.json();
 
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-      return showToast(t('error') + ': PDF library not loaded', 'danger');
-  }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y = 15;
-  const lineSpacing = 6;
+      if (method === 'GET') {
+        this.setCache(cacheKey, data);
+      } else {
+        // Clear relevant cache on mutation
+        this.clearCache(endpoint.split('?')[0]);
+      }
 
-  const currentLang = localStorage.getItem('lang') || 'en';
-  const T = (key) => LANG[currentLang][key] || key;
-
-  // --- Header ---
-  doc.setFontSize(24).text(T('invoice'), 150, y, null, null, 'right');
-  y += lineSpacing;
-
-  // --- Profile Info (Left) ---
-  doc.setFontSize(10).text(T('invoiceFrom'), 20, y);
-  y += lineSpacing / 2;
-  doc.setFontSize(12).text(profile?.name || 'Your Business Name', 20, y);
-  y += lineSpacing;
-  doc.setFontSize(10).text(profile?.address || 'Your Address', 20, y);
-  y += lineSpacing;
-  doc.text(profile?.email || 'Your Email', 20, y);
-  y += lineSpacing;
-
-  // --- Client Info (Right) ---
-  const clientX = 150;
-  y = 15; // Reset Y for client info alignment
-  doc.setFontSize(10).text(T('invoiceTo'), clientX, y, null, null, 'right');
-  y += lineSpacing / 2;
-  doc.setFontSize(12).text(client?.name || 'Client Name', clientX, y, null, null, 'right');
-  y += lineSpacing;
-  doc.setFontSize(10).text(client?.address || 'Client Address', clientX, y, null, null, 'right');
-  y += lineSpacing;
-  doc.text(client?.invoice_email || 'Client Email', clientX, y, null, null, 'right');
-
-  // --- Invoice Details Table ---
-  y = 60;
-  doc.line(20, y, 190, y); // Separator line
-  y += 5;
-
-  doc.text(`${T('invoiceId')}: ${inv.id}`, 20, y);
-  doc.text(`${T('dateIssued')}: ${formatDate(inv.date_issued)}`, 80, y);
-  doc.text(`${T('dueDate')}: ${formatDate(inv.due_date)}`, 150, y);
-  y += lineSpacing * 2;
-
-  // --- Line Items Table Header ---
-  doc.setFontSize(10).text(T('description'), 20, y);
-  doc.text(T('quantity'), 100, y);
-  doc.text(T('unitPrice'), 125, y);
-  doc.text(T('total'), 175, y, null, null, 'right');
-  y += 3;
-  doc.line(20, y, 190, y); // Separator line
-  y += 5;
-
-  // --- Line Items Table Rows ---
-  doc.setFontSize(10);
-  items.forEach(item => {
-    doc.text(item.description, 20, y);
-    doc.text(String(item.quantity), 100, y);
-    doc.text(formatCurrency(item.unit_price, inv.currency), 125, y);
-    doc.text(formatCurrency(item.total, inv.currency), 175, y, null, null, 'right');
-    y += lineSpacing;
-  });
-
-  y += lineSpacing;
-  doc.line(140, y, 190, y); // Subtotal separator
-
-  // --- Totals Summary ---
-  y += 5;
-  doc.text(`${T('subtotal')}:`, 140, y);
-  doc.text(formatCurrency(inv.subtotal || inv.total, inv.currency), 175, y, null, null, 'right');
-  y += lineSpacing;
-
-  doc.text(`${T('tax')}:`, 140, y);
-  doc.text(formatCurrency(inv.tax || 0, inv.currency), 175, y, null, null, 'right');
-  y += lineSpacing;
-
-  doc.setFontSize(12).text(`${T('total')}:`, 140, y);
-  doc.text(formatCurrency(inv.total, inv.currency), 175, y, null, null, 'right');
-  y += lineSpacing * 2;
-
-  // --- Payment Info ---
-  doc.setFontSize(10).text(T('paymentDetails'), 20, y);
-  y += lineSpacing;
-
-  if (profile?.bank_entries?.length) {
-    profile.bank_entries.forEach(acc => {
-      doc.text(`${acc.label}: ${acc.number}`, 20, y);
-      y += lineSpacing;
-    });
-  } else {
-    // Fallback to legacy fields if JSONB array is empty/null
-    for (let i = 1; i <= 3; i++) {
-        const label = profile[`bank_label_${i}`];
-        const number = profile[`bank_number_${i}`];
-        if (label && number) {
-            doc.text(`${label}: ${number}`, 20, y);
-            y += lineSpacing;
-        }
-    }
-  }
-
-  doc.save(`invoice-${inv.id}.pdf`);
-  showToast(t('downloadSuccess')); // Assuming success
-};
-
-window.loadData = loadData; // Exposed for general use after a change
-
-// --- CRUD HANDLERS (Complete) ---
-
-// INVOICES
-window.markInvoicePaid = async (id) => {
-    try {
-        await database.markInvoicePaid(id);
-        await loadData();
-        showToast(t('saveSuccess'));
+      return data;
     } catch (error) {
-        showToast(t('error'), 'danger');
-    }
-}
-
-// CLIENTS
-window.deleteClient = async (id) => {
-    if (confirm(t('confirmDelete'))) {
-        try {
-            await database.deleteClient(id);
-            await loadData();
-            showToast(t('deleteSuccess'));
-        } catch (error) {
-            showToast(t('error'), 'danger');
-        }
-    }
-}
-
-// JOBS
-window.deleteJob = async (id) => {
-    if (confirm(t('confirmDelete'))) {
-        try {
-            await database.deleteJob(id);
-            await loadData();
-            showToast(t('deleteSuccess'));
-        } catch (error) {
-            showToast(t('error'), 'danger');
-        }
-    }
-}
-
-window.toggleBilledJobs = (checked) => {
-    state.showBilledJobs = checked;
-    showView('jobs');
-}
-
-
-// TIMESHEETS
-window.deleteTimesheet = async (id) => {
-    if (confirm(t('confirmDelete'))) {
-        try {
-            await database.deleteTimesheet(id);
-            await loadData();
-            showToast(t('deleteSuccess'));
-        } catch (error) {
-            showToast(t('error'), 'danger');
-        }
-    }
-}
-
-// TODOS
-window.handleNewTodo = async (event) => {
-    if (event.key === 'Enter') {
-        const titleInput = document.getElementById('newTodoTitle');
-        const title = titleInput.value.trim();
-        if (!title) return;
-
-        try {
-            await database.addTodo({ title, is_completed: false, created_at: new Date().toISOString() });
-            titleInput.value = '';
-            await loadData();
-            showToast(t('saveSuccess'));
-        } catch (error) {
-            showToast(t('error'), 'danger');
-        }
-    }
-}
-
-window.toggleTodo = async (id, isCompleted) => {
-    try {
-        await database.updateTodo(id, { is_completed: isCompleted, updated_at: new Date().toISOString() });
-        await loadData();
-        showToast(t('saveSuccess'));
-    } catch (error) {
-        showToast(t('error'), 'danger');
-    }
-};
-
-window.deleteTodo = async (id) => {
-    if (confirm(t('confirmDelete'))) {
-        try {
-            await database.deleteTodo(id);
-            await loadData();
-            showToast(t('deleteSuccess'));
-        } catch (error) {
-            showToast(t('error'), 'danger');
-        }
-    }
-};
-
-// TRASH
-window.restoreItem = async (table, id) => {
-  try {
-    await database.restore(table, id);
-    await loadData();
-    showView('trash');
-    showToast(t('restoreSuccess'));
-  } catch (error) {
-    showToast(`${t('error')}: ${error.message}`, 'danger');
-  }
-};
-
-window.deleteForever = async (table, id) => {
-  if (confirm(t('confirmDeleteForever'))) {
-    try {
-        if (table === 'invoices') await database.hardDelete(table, id);
-        else if (table === 'clients') await database.hardDelete(table, id);
-        else if (table === 'jobs') await database.hardDelete(table, id);
-        else if (table === 'timesheets') await database.hardDelete(table, id);
-
-        await loadData();
-        showView('trash');
-        showToast(t('deleteSuccess'));
-    } catch (error) {
-        showToast(`${t('error')}: ${error.message}`, 'danger');
+      console.error('[DB] FAILED REQUEST ->', error);
+      throw error;
     }
   }
-};
 
-// --- Initialization and Event Binding ---
+  // --- Utility Methods ---
 
-async function init() {
-  return new Promise((resolve) => {
-    if (window.netlifyIdentity) {
-      window.netlifyIdentity.init();
-      window.netlifyIdentity.on('init', async (user) => {
-        if (!user) {
-          window.location.href = '/index.html';
-          return;
-        }
+  async update(table, id, data) {
+    // CRITICAL: Ensure user_id is set before update for RLS and security
+    const updateData = Array.isArray(data) ?
+      data.map(d => ({ ...d, user_id: this.userId })) :
+      { ...data, user_id: this.userId };
 
-        state.currentUser = user;
-        database.setUser(user.id);
-        document.getElementById('userEmail').textContent = user.email;
+    return this.request(`${table}?id=eq.${id}`, { method: 'PATCH', body: updateData });
+  }
 
-        const savedLang = localStorage.getItem('lang') || 'en';
-        document.getElementById('langSelect').value = savedLang;
-        setLanguage(savedLang);
+  async insert(table, data) {
+    // CRITICAL: Ensure user_id is set before insert for RLS and security
+    const insertData = Array.isArray(data) ?
+      data.map(d => ({ ...d, user_id: this.userId })) :
+      { ...data, user_id: this.userId };
 
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.body.setAttribute('data-theme', savedTheme);
+    return this.request(`${table}`, { method: 'POST', body: insertData });
+  }
 
-        // Load all data on successful login
-        await loadData();
-        bindEvents();
-        resolve();
+  async softDelete(table, id) {
+    // Moves the item to trash
+    return this.update(table, id, { deleted: true, updated_at: new Date().toISOString() });
+  }
+
+  async hardDelete(table, id) {
+    // Permanently deletes an item
+    return this.request(`${table}?id=eq.${id}`, { method: 'DELETE' });
+  }
+
+  async restore(table, id) {
+    // Restores item from trash
+    return this.update(table, id, { deleted: false, updated_at: new Date().toISOString() });
+  }
+
+  async requestBatch(requests) {
+    const token = NetlifyIdentity.currentUser()?.token?.access_token;
+    if (!token) throw new Error('Authentication token not available.');
+
+    const cacheKey = this.getCacheKey('batch:' + JSON.stringify(requests));
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
+
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const url = `${baseUrl}/.netlify/functions/db-batch`;
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requests)
       });
 
-      window.netlifyIdentity.on('logout', () => {
-        window.location.href = '/index.html';
-      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(`Batch Error: ${res.status} - ${errorData.message || res.statusText}`);
+      }
+
+      const batchRes = await res.json();
+      this.setCache(cacheKey, batchRes);
+      return batchRes;
+    } catch (error) {
+      console.error('[DB] BATCH FAILED ->', error);
+      throw error;
     }
-  });
+  }
+
+
+  // --- CRUD METHODS (by Table) ---
+
+  // BUSINESS
+  async getProfile() {
+    const data = await this.requestBatch({ business: `business?select=*` });
+    return data.business;
+  }
+
+  async upsertProfile(data) {
+    // If the data already has an ID, use PATCH, otherwise use POST.
+    if (data.id) {
+        return this.update('business', data.id, data);
+    } else {
+        return this.insert('business', data);
+    }
+  }
+
+  // CLIENTS
+  async getAllClients() {
+    return this.request(`clients?deleted=eq.false&order=name.asc&select=*`);
+  }
+
+  async addClient(data) {
+    return this.insert('clients', data);
+  }
+
+  async updateClient(id, data) {
+    return this.update('clients', id, data);
+  }
+
+  async deleteClient(id) {
+    return this.softDelete('clients', id);
+  }
+
+  // JOBS
+  async getAllJobs() {
+    return this.request(`jobs?deleted=eq.false&order=created_at.desc&select=*`);
+  }
+
+  async getJob(id) {
+    const result = await this.request(`jobs?id=eq.${id}&select=*,job_lines(*)`);
+    return result[0];
+  }
+
+  async addJob(data) {
+    const jobData = { ...data };
+    const jobLines = jobData.job_lines || [];
+    delete jobData.job_lines;
+
+    const newJob = await this.insert('jobs', jobData);
+
+    if (jobLines.length > 0) {
+        const linesToInsert = jobLines.map(line => ({ ...line, job_id: newJob[0].id }));
+        await this.insert('job_lines', linesToInsert);
+    }
+    return newJob;
+  }
+
+  async updateJob(id, data) {
+    const jobData = { ...data };
+    const jobLines = jobData.job_lines || [];
+    delete jobData.job_lines;
+
+    const updatedJob = await this.update('jobs', id, jobData);
+
+    // Clear all existing job lines and insert new ones (safer for complex updates)
+    await this.request(`job_lines?job_id=eq.${id}`, { method: 'DELETE' });
+
+    if (jobLines.length > 0) {
+        const linesToInsert = jobLines.map(line => ({ ...line, job_id: id }));
+        await this.insert('job_lines', linesToInsert);
+    }
+    return updatedJob;
+  }
+
+  async deleteJob(id) {
+    return this.softDelete('jobs', id);
+  }
+
+  // TIMESHEETS
+  async getAllTimesheets() {
+    return this.request(`timesheets?deleted=eq.false&order=date.desc&select=*`);
+  }
+
+  async addTimesheet(data) {
+    return this.insert('timesheets', data);
+  }
+
+  async updateTimesheet(id, data) {
+    return this.update('timesheets', id, data);
+  }
+
+  async deleteTimesheet(id) {
+    return this.softDelete('timesheets', id);
+  }
+
+  // INVOICES
+  async getAllInvoices() {
+    return this.request(`invoices?deleted=eq.false&order=date_issued.desc&select=*`);
+  }
+
+  async addInvoice(data) {
+    return this.insert('invoices', data);
+  }
+
+  async updateInvoice(id, data) {
+    return this.update('invoices', id, data);
+  }
+
+  async deleteInvoice(id) {
+    return this.softDelete('invoices', id);
+  }
+
+  async markInvoicePaid(id) {
+    return this.update('invoices', id, { status: 'paid', updated_at: new Date().toISOString() });
+  }
+
+  // EXPENSES
+  async getAllExpenses() {
+    return this.request(`expenses?order=date.desc&select=*`);
+  }
+
+  async addExpense(data) {
+    return this.insert('expenses', data);
+  }
+
+  async updateExpense(id, data) {
+    return this.update('expenses', id, data);
+  }
+
+  async deleteExpense(id) {
+    return this.hardDelete('expenses', id); // Expenses typically hard deleted
+  }
+
+  // TODOS
+  async getAllTodos() {
+    return this.request(`todos?order=created_at.desc&select=*`);
+  }
+
+  async addTodo(data) {
+    return this.insert('todos', data);
+  }
+
+  async updateTodo(id, data) {
+    return this.update('todos', id, data);
+  }
+
+  async deleteTodo(id) {
+    return this.hardDelete('todos', id);
+  }
+
+  // TRASH
+  async getTrash() {
+    const cacheKey = this.getCacheKey('trash');
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
+
+    // Fetch all soft-deleted items (user_id filter is enforced by the proxy)
+    const [clients, jobs, timesheets, invoices] = await Promise.all([
+      this.request(`clients?deleted=eq.true&order=updated_at.desc&select=*`),
+      this.request(`jobs?deleted=eq.true&order=updated_at.desc&select=*`),
+      this.request(`timesheets?deleted=eq.true&order=updated_at.desc&select=*`),
+      this.request(`invoices?deleted=eq.true&order=updated_at.desc&select=*`)
+    ]);
+
+    const data = [
+      ...clients.map(c => ({ ...c, _table: 'clients' })).filter(c => c.deleted),
+      ...jobs.map(j => ({ ...j, _table: 'jobs' })).filter(j => j.deleted),
+      ...timesheets.map(t => ({ ...t, _table: 'timesheets' })).filter(t => t.deleted),
+      ...invoices.map(i => ({ ...i, _table: 'invoices' })).filter(i => i.deleted),
+    ];
+
+    this.setCache(cacheKey, data);
+    return data;
+  }
+
+  // DANGEROUS: For account deletion only
+  async deleteAllUserData() {
+    const tables = ['invoices','timesheets','jobs','clients','business', 'expenses', 'todos'];
+
+    // WARNING: This depends on RLS allowing deletion by user_id
+    await Promise.all(
+      tables.map(t => this.request(`${t}?user_id=eq.${this.userId}`, { method: 'DELETE' }))
+    );
+    this.clearCache();
+  }
 }
 
-function bindEvents() {
-    // Navigation binding
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.addEventListener('click', (e) => {
-            showView(e.target.getAttribute('data-view'));
-        });
-    });
-
-    // Header Toggles
-    document.getElementById('logoutBtn').addEventListener('click', () => window.netlifyIdentity.logout());
-    document.getElementById('themeToggle').addEventListener('click', () => {
-        const currentTheme = document.body.getAttribute('data-theme');
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        document.body.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-    });
-    document.getElementById('langSelect').addEventListener('change', (e) => {
-        const lang = e.target.value;
-        setLanguage(lang);
-        localStorage.setItem('lang', lang);
-        showView(state.currentView);
-    });
-
-    // Placeholder modal functions (these must be defined in your app)
-    window.openClientModal = (id) => alert(`Open Client Modal for ID: ${id || 'New'}`);
-    window.openJobModal = (id) => alert(`Open Job Modal for ID: ${id || 'New'}`);
-    window.openTimesheetModal = (id) => alert(`Open Timesheet Modal for ID: ${id || 'New'}`);
-}
-
-// Start the application
-init();
+export const database = new Database();
