@@ -1194,7 +1194,10 @@ async function createInvoiceFromJob(jobId) {
 
   const invoiceData = {
     id: invoiceId,
+    user_id: state.currentUser.id,
     client_id: job.client_id,
+    job_id: jobId,
+    currency: currency,
     items: JSON.stringify([{
       description: fullDescription,
       hours: hours,
@@ -1202,8 +1205,10 @@ async function createInvoiceFromJob(jobId) {
     }]),
     total: total,
     status: 'unpaid',
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+               .toISOString().split('T')[0]
   };
+
 
   try {
     await database.saveInvoice(invoiceData);
