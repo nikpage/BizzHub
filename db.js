@@ -302,9 +302,9 @@ class Database {
 
   async saveInvoice(invoice) {
     if (invoice.id) {
-      const existing = await this.getInvoice(invoice.id);
+      const existing = await this.getById('invoices', invoice.id);
       if (existing) {
-        return this.update('invoices', invoice.id, invoice);
+        return this.update('invoices', existing.id, invoice);
       }
     }
     return this.create('invoices', invoice);
