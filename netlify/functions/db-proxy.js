@@ -68,9 +68,8 @@ exports.handler = async (event) => {
     // Replace any user_id in the endpoint with the authenticated user's ID
     if (safeEndpoint.includes('user_id=')) {
       safeEndpoint = safeEndpoint.replace(/user_id=eq\.[^&]+/g, `user_id=eq.${authenticatedUserId}`);
-    } else if (method !== 'POST' && method !== 'PATCH') {
-      // Add user_id filter ONLY for GET/DELETE requests
-      // For POST/PATCH, the body user_id is sufficient - adding a query filter can cause empty responses
+    } else {
+      // Add user_id filter if not present
       safeEndpoint += (safeEndpoint.includes('?') ? '&' : '?') + `user_id=eq.${authenticatedUserId}`;
     }
 

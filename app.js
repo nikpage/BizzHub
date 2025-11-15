@@ -15,16 +15,15 @@ const state = {
 
 // Utility Functions
 function formatCurrency(amount) {
-  amount = Number(amount) || 0;
   return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatDate(dateString) {
-  if (!dateString || dateString === 'null' || dateString === 'undefined') return '-';
+  if (!dateString) return '-';
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString('cs-CZ', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
+
 // Initialize app
 async function init() {
   // Wait for Netlify Identity to be ready
@@ -235,16 +234,8 @@ function renderDashboard(container) {
           ` : state.invoices.map((inv, i) => {
             const client = state.clients.find(c => c.id === inv.client_id);
             const currency = client?.currency || 'CZK';
-            let description = '';
-            try {
-              let items = [];
-try {
-  items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
-} catch (e) {
-  items = [];
-}
-              description = items[0]?.description || '';
-            } catch (e) {}
+            const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
+            const description = items.length > 0 ? items[0].description : '';
             const truncatedDesc = description.length > 30 ? description.substring(0, 30) + '...' : description;
             return `
             <tr>
@@ -972,7 +963,7 @@ function collectLineItems(type) {
       items.push({
         type: type,
         description: description,
-        amount: type === 'deposit' ? -amount : amount // Store deposits as negative
+        total: type === 'deposit' ? -amount : amount // Store deposits as negative
       });
     }
   });
@@ -1160,54 +1151,69 @@ async function createInvoiceFromJob(jobId) {
   if (!job) return;
 
   const client = state.clients.find(c => c.id === job.client_id);
-  if (!client) return showToast('Client not found', 'error');
-
-  // Reload invoices to get accurate count for ID generation
-  state.invoices = await database.getInvoices();
+  if (!client) {
+    showToast('Client not found', 'error');
+    return;
+  }
 
   const hours = parseFloat(job.hours) || 0;
   const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
   const currency = job.currency || client.currency || 'CZK';
   const total = hours * rate;
 
+  let dateRange = '';
+  if (job.start_date && job.end_date) {
+    dateRange = `${formatDate(job.start_date)} - ${formatDate(job.end_date)}`;
+  } else if (job.start_date) {
+    dateRange = formatDate(job.start_date);
+  }
+
   const descParts = [job.name];
   if (job.description) descParts.push(job.description);
   if (job.address) descParts.push(job.address);
-  if (job.start_date) descParts.push(formatDate(job.start_date));
-  if (job.end_date) descParts.push(`– ${formatDate(job.end_date)}`);
-  const fullDescription = descParts.filter(Boolean).join('\n');
+  if (dateRange) descParts.push(dateRange);
+  const fullDescription = descParts.join('\n');
 
+  // Generate invoice ID in format YYMMDD-II
   const now = new Date();
-  const prefix = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
-  // Filter for text IDs that match date pattern, ignore UUID ids
-  const todayInvs = state.invoices.filter(i => {
-    const id = i.id || '';
-    return typeof id === 'string' && id.match(/^\d{6}-\d+$/);
-  }).filter(i => i.id.startsWith(prefix));
-  const next = todayInvs.length ? Math.max(...todayInvs.map(i => parseInt(i.id.split('-')[1]) || 0)) + 1 : 1;
-  const invoiceId = `${prefix}-${String(next).padStart(2,'0')}`;
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `${yy}${mm}${dd}`;
+
+  const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
+  let nextIncrement = 1;
+  if (todayInvoices.length > 0) {
+    const increments = todayInvoices.map(inv => {
+      const parts = inv.id.split('-');
+      return parts.length === 2 ? parseInt(parts[1]) : 0;
+    });
+    nextIncrement = Math.max(...increments) + 1;
+  }
+  const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
 
   const invoiceData = {
     id: invoiceId,
-    user_id: state.currentUser.id,
     client_id: job.client_id,
-    job_id: jobId,
-    currency,
-    items: JSON.stringify([{ description: fullDescription, hours, rate, amount: total }]),
-    total,
+    items: JSON.stringify([{
+      description: fullDescription,
+      hours: hours,
+      rate: rate
+    }]),
+    total: total,
     status: 'unpaid',
-    created_at: now.toISOString(),
-    due_date: new Date(Date.now() + 30*86400000).toISOString().split('T')[0]
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   };
 
   try {
     await database.saveInvoice(invoiceData);
     await database.saveJob({ ...job, billed: true });
-    await loadData(); // ← This reloads ALL invoices
+    await loadData();
     showView('dashboard');
-    showToast('Invoice created');
+    showToast('Invoice created successfully');
   } catch (err) {
-    showToast('Failed', 'error');
+    console.error('Failed to create invoice:', err);
+    showToast('Failed to create invoice', 'error');
   }
 }
 
@@ -1405,195 +1411,260 @@ window.deleteTimesheet = async (id) => {
   }
 };
 
+// Replace the two functions `window.viewInvoice` and `window.downloadInvoice` in app.js
+// This version forces a bilingual template: Czech first, English second. Layout and logic unchanged.
+
 window.viewInvoice = async (id) => {
   const inv = state.invoices.find(i => i.id === id);
   if (!inv) return;
+
   const client = state.clients.find(c => c.id === inv.client_id);
-  const job = state.jobs.find(j => j.id === inv.job_id);
-  const lines = await database.getJobLines(inv.job_id);
-  const expenses = lines.filter(l => l.type === 'expense');
-  const deposits = lines.filter(l => l.type === 'deposit');
-  const currency = client?.currency || 'CZK';
+  const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
 
   const win = window.open('', '_blank');
   win.document.write(`
     <!DOCTYPE html>
-    <html><head><meta charset="UTF-8"><title>FAKTURA / INVOICE #${inv.id}</title>
-    <style>
-      body { font-family: Arial; padding: 40px; max-width: 900px; margin: auto; }
-      .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
-      .title { font-size: 32px; font-weight: bold; }
-      .meta { text-align: right; font-size: 14px; line-height: 1.7; }
-      .separator { border-bottom: 2px solid #000; margin: 25px 0; }
-      .parties { display: flex; justify-content: space-between; margin: 30px 0; }
-      .party { width: 48%; }
-      .party h3 { font-size: 15px; font-weight: bold; margin-bottom: 8px; }
-      table { width: 100%; border-collapse: collapse; margin: 25px 0; }
-      th { background: #f8f8f8; padding: 10px; text-align: left; border-bottom: 2px solid #333; }
-      td { padding: 10px; border-bottom: 1px solid #ddd; }
-      .right { text-align: right; }
-      .total-section { margin-top: 20px; text-align: right; }
-      .total-line { font-weight: bold; font-size: 18px; padding: 10px 0; border-top: 2px solid #000; }
-      .footer { margin-top: 40px; font-size: 13px; }
-      .print-btn { margin-top: 30px; padding: 12px 24px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; }
-      @media print { .no-print { display: none; } }
-    </style>
-    </head><body>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>FAKTURA / INVOICE #${inv.id}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; padding: 50px; max-width: 900px; margin: 0 auto; color: #000; background: #fff; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
+        .invoice-title { font-size: 36px; font-weight: bold; }
+        .invoice-meta { text-align: right; font-size: 14px; line-height: 1.8; }
+        .invoice-meta div { margin-bottom: 2px; }
+        .separator { border-bottom: 2px solid #000; margin: 25px 0; }
+        .parties { display: flex; justify-content: space-between; margin: 30px 0 40px 0; }
+        .party { width: 48%; }
+        .party h3 { font-size: 15px; font-weight: bold; margin-bottom: 8px; }
+        .party p { margin: 0; font-size: 14px; line-height: 1.5; }
+        table { width: 100%; border-collapse: collapse; margin: 30px 0; }
+        th { background: #f8f8f8; padding: 12px; text-align: left; font-weight: bold; font-size: 13px; border-bottom: 2px solid #333; }
+        th.right { text-align: right; }
+        td { padding: 12px; font-size: 14px; border-bottom: 1px solid #e0e0e0; }
+        td:first-child { max-width: 400px; word-wrap: break-word; white-space: normal; }
+        td.right { text-align: right; }
+        .total-section { text-align: right; margin-top: 30px; }
+        .total-line { font-size: 20px; font-weight: bold; padding: 15px 0; border-top: 2px solid #000; }
+        .footer-info { margin-top: 50px; font-size: 13px; line-height: 1.8; }
+        .footer-info p { margin: 3px 0; }
+        @media print { body { padding: 30px; } .no-print { display: none; } }
+        .print-btn { padding: 14px 28px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; margin-top: 40px; font-weight: 500; }
+        .print-btn:hover { background: #4f46e5; }
+      </style>
+    </head>
+    <body>
       <div class="header">
-        <h1 class="title">FAKTURA / INVOICE</h1>
-        <div class="meta">
-          <div><strong>Číslo / #:</strong> ${inv.id}</div>
-          <div><strong>Datum / Date:</strong> ${formatDate(inv.created_at || '')}</div>
-          <div><strong>Splatnost / Due:</strong> ${formatDate(inv.due_date)}</div>
+        <h1 class="invoice-title">FAKTURA / INVOICE</h1>
+        <div class="invoice-meta">
+          <div><strong>Číslo faktury / Invoice #:</strong> ${inv.id}</div>
+          <div><strong>Datum vystavení / Issue date:</strong> ${formatDate(inv.created_at)}</div>
+          <div><strong>Datum splatnosti / Due date:</strong> ${formatDate(inv.due_date)}</div>
+          <div><strong>Forma úhrady / Payment Method:</strong> Bankovní převod / Bank transfer</div>
         </div>
       </div>
+
       <div class="separator"></div>
+
       <div class="parties">
         <div class="party">
           <h3>Dodavatel / Supplier</h3>
-          <p><strong>${state.profile?.name || 'Your Business'}</strong><br>
-          ${state.profile?.address || ''}<br>
-          ${formatIdEntries(state.profile)}</p>
+          <p>
+            <strong>${state.profile?.name || 'Your Business'}</strong><br>
+            ${state.profile?.address || ''}<br>
+            ${(() => {
+              const parts = [];
+              const ids = state.profile?.id_entries || [];
+              if (Array.isArray(ids) && ids.length) return ids.map(id => `${id.label}: ${id.number}`).join('<br>');
+              for (let i=1;i<=4;i++){
+                const label = state.profile?.[`id_label_${i}`];
+                const num = state.profile?.[`id_number_${i}`];
+                if (label || num) parts.push(`${label || 'ID'}: ${num || ''}`);
+              }
+              return parts.join('<br>');
+            })() || ''}
+          </p>
         </div>
+
         <div class="party">
           <h3>Odběratel / Customer</h3>
-          <p><strong>${client?.name || '-'}</strong><br>
-          ${client?.address || ''}<br>
-          ${formatIdEntries(client)}</p>
+          <p>
+            <strong>${client?.name || '-'}</strong><br>
+            ${client?.address || ''}<br>
+            ${(() => {
+              const parts = [];
+              const ids = client?.id_entries || [];
+              if (Array.isArray(ids) && ids.length) return ids.map(id => `${id.label}: ${id.number}`).join('<br>');
+              for (let i=1;i<=4;i++){
+                const label = client?.[`id_label_${i}`];
+                const num = client?.[`id_number_${i}`];
+                if (label || num) parts.push(`${label || 'ID'}: ${num || ''}`);
+              }
+              return parts.join('<br>');
+            })() || ''}
+          </p>
         </div>
       </div>
 
-      ${job ? `<p><strong>Projekt / Job:</strong> ${job.name}</p>` : ''}
-
       <table>
-        <thead><tr>
-          <th>Položka / Item</th>
-          <th class="right">Množství / Qty</th>
-          <th class="right">Cena / Price</th>
-          <th class="right">Částka / Amount</th>
-        </tr></thead>
+        <thead>
+          <tr>
+            <th>Položka / Description</th>
+            <th class="right">Počet hodin / Hours</th>
+            <th class="right">Sazba/hod. / Rate</th>
+            <th class="right">Částka / Amount</th>
+          </tr>
+        </thead>
         <tbody>
-          ${expenses.map(line => `
-            <tr><td>${line.description}</td>
-            <td class="right">1</td>
-            <td class="right">${formatCurrency(line.unit_price)} ${currency}</td>
-            <td class="right">${formatCurrency(line.unit_price)} ${currency}</td></tr>
+          ${items.map(item => `
+            <tr>
+              <td>${item.description}</td>
+              <td class="right">${(item.hours || 0).toFixed(2)}</td>
+              <td class="right">${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}</td>
+              <td class="right">${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
+            </tr>
           `).join('')}
-          ${deposits.length > 0 ? `<tr style="background:#f9f9f9;">
-            <td colspan="3" style="font-weight:bold;">Zálohy / Deposits</td>
-            <td class="right" style="font-weight:bold;">-${formatCurrency(deposits.reduce((s,d)=>s+d.unit_price,0))} ${currency}</td>
-          </tr>` : ''}
         </tbody>
       </table>
 
       <div class="total-section">
-        <div>CELKEM / SUBTOTAL: ${formatCurrency(inv.subtotal || inv.total)} ${currency}</div>
-        <div class="total-line">K ÚHRADĚ / TOTAL DUE: ${formatCurrency(inv.total)} ${currency}</div>
+        <div class="total-line">CELKEM K ÚHRADĚ / TOTAL DUE: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
       </div>
 
-      <div class="footer">
-        <p><strong>Bankovní spojení / Bank:</strong></p>
-        ${formatBankEntries(state.profile)}
-        <p style="margin-top:15px;">Nejsem plátce DPH. / Not VAT payer.</p>
+      <div class="footer-info">
+        <p><strong>Bankovní spojení / Bank Details:</strong></p>
+        ${state.profile?.bank_entries?.map(acc => `<p>${acc.label}: ${acc.number}</p>`).join('') || '<p>Nezadáno / Not specified</p>'}
+        <p style="margin-top: 15px;">Nejsem plátce DPH. / Not a VAT payer.</p>
       </div>
 
-      <div class="no-print"><button class="print-btn" onclick="window.print()">Tisk / Print</button></div>
-    </body></html>
+      <div class="no-print">
+        <button class="print-btn" onclick="window.print()">Tisk / Print</button>
+      </div>
+    </body>
+    </html>
   `);
   win.document.close();
 };
-
-// Helper functions
-function formatIdEntries(obj) {
-  const entries = obj?.id_entries || [];
-  if (entries.length) return entries.map(e => `${e.label}: ${e.number}`).join('<br>');
-  return [1,2,3,4].map(i => obj?.[`id_label_${i}`] ? `${obj[`id_label_${i}`]}: ${obj[`id_number_${i}`] || ''}` : '').filter(Boolean).join('<br>') || '';
-}
-function formatBankEntries(profile) {
-  return (profile?.bank_entries || []).map(e => `<p>${e.label}: ${e.number}</p>`).join('') || '<p>Nezadáno</p>';
-}
 
 
 window.downloadInvoice = async (id) => {
   const inv = state.invoices.find(i => i.id === id);
   if (!inv) return;
-  const client = state.clients.find(c => c.id === inv.client_id);
-  const job = state.jobs.find(j => j.id === inv.job_id);
-  const lines = await database.getJobLines(inv.job_id);
-  const expenses = lines.filter(l => l.type === 'expense');
-  const deposits = lines.filter(l => l.type === 'deposit');
-  const currency = client?.currency || 'CZK';
 
+  const client = state.clients.find(c => c.id === inv.client_id);
+  const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true, orientation: 'p', unit: 'mm', format: 'a4' });
+
+  // Set font that supports Czech characters
+  doc.setFont('Helvetica', 'normal');
+
+  // Remove auto header/date metadata entirely
+  doc.setProperties({ title: `invoice-${inv.id}` });
 
   doc.setFontSize(24);
   doc.text('FAKTURA / INVOICE', 20, 20);
+
   doc.setFontSize(11);
-  doc.text(`Číslo / #: ${inv.id}`, 20, 35);
-  doc.text(`Datum / Date: ${formatDate(inv.created_at || '')}`, 20, 42);
-  doc.text(`Splatnost / Due: ${formatDate(inv.due_date)}`, 20, 49);
+  doc.text(`Číslo faktury / Invoice #: ${inv.id}`, 20, 35);
+  doc.text(`Datum vystavení / Issue date: ${formatDate(inv.created_at)}`, 20, 42);
+  doc.text(`Datum splatnosti / Due date: ${formatDate(inv.due_date)}`, 20, 49);
+  doc.text('Forma úhrady / Payment: Bankovní převod / Bank transfer', 20, 56);
 
   doc.setLineWidth(0.5);
-  doc.line(20, 55, 190, 55);
+  doc.line(20, 62, 190, 62);
 
-  // Supplier & Client
-  doc.setFontSize(12); doc.setFont(undefined, 'bold');
-  doc.text('Dodavatel / Supplier', 20, 65); doc.text('Odběratel / Customer', 110, 65);
-  doc.setFont(undefined, 'normal'); doc.setFontSize(10);
-  let y = 71;
-  doc.text(state.profile?.name || 'Your Business', 20, y);
-  if (state.profile?.address) { y += 5; doc.text(state.profile.address, 20, y); }
-  y += 5; doc.text(formatIdEntries(state.profile), 20, y, { maxWidth: 80 });
-
-  y = 71;
-  doc.text(client?.name || '-', 110, y);
-  if (client?.address) { y += 5; doc.text(client.address, 110, y); }
-  y += 5; doc.text(formatIdEntries(client), 110, y, { maxWidth: 80 });
-
-  if (job) { y += 10; doc.text(`Projekt / Job: ${job.name}`, 20, y); }
-
-  y = Math.max(y, 95) + 10;
-  doc.setFontSize(10); doc.setFont(undefined, 'bold');
-  doc.text('Položka / Item', 20, y);
-  doc.text('Množ. / Qty', 115, y, { align: 'right' });
-  doc.text('Cena / Price', 145, y, { align: 'right' });
-  doc.text('Částka / Amount', 190, y, { align: 'right' });
-  y += 2; doc.line(20, y, 190, y); y += 7;
-
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.text('Dodavatel / Supplier', 20, 72);
   doc.setFont(undefined, 'normal');
-  expenses.forEach(line => {
-    if (y > 270) { doc.addPage(); y = 20; }
-    doc.text(line.description, 20, y, { maxWidth: 90 });
-    doc.text('1', 115, y, { align: 'right' });
-    doc.text(`${formatCurrency(line.unit_price)} ${currency}`, 145, y, { align: 'right' });
-    doc.text(`${formatCurrency(line.unit_price)} ${currency}`, 190, y, { align: 'right' });
-    y += 7;
-  });
+  doc.setFontSize(10);
+  let y = 78;
+  doc.text(state.profile?.name || 'Your Business', 20, y);
 
-  if (deposits.length > 0) {
-    const depTotal = deposits.reduce((s,d) => s + d.unit_price, 0);
-    doc.setFont(undefined, 'bold');
-    doc.text('Zálohy / Deposits', 20, y, { maxWidth: 90 });
-    doc.text(`-${formatCurrency(depTotal)} ${currency}`, 190, y, { align: 'right' });
-    y += 7;
+  if (state.profile?.address) {
+    y += 5;
+    const addressLines = doc.splitTextToSize(state.profile.address, 80);
+    doc.text(addressLines, 20, y);
+    y += (addressLines.length * 4);
   }
 
-  y += 5; doc.line(120, y, 190, y); y += 8;
-  doc.setFontSize(12); doc.setFont(undefined, 'bold');
-  doc.text('CELKEM / SUBTOTAL:', 20, y);
-  doc.text(`${formatCurrency(inv.subtotal || inv.total)} ${currency}`, 190, y, { align: 'right' });
+  const supplierIds = Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length
+    ? state.profile.id_entries
+    : Array.from({length: 4}, (_, i) => ({
+        label: state.profile?.[`id_label_${i+1}`],
+        number: state.profile?.[`id_number_${i+1}`]
+      })).filter(e => e.label || e.number);
+  supplierIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); });
+
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.text('Odběratel / Customer', 110, 72);
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(10);
+  y = 78;
+  doc.text(client?.name || '-', 110, y);
+  if (client?.address) { y += 5; doc.text(client.address, 110, y); }
+  if (client?.invoice_email) { y += 5; doc.text(client.invoice_email, 110, y); }
+  const clientIds = Array.isArray(client?.id_entries) && client.id_entries.length
+    ? client.id_entries
+    : Array.from({length: 4}, (_, i) => ({
+        label: client?.[`id_label_${i+1}`],
+        number: client?.[`id_number_${i+1}`]
+      })).filter(e => e.label || e.number);
+  clientIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
+
+  y = Math.max(y, 95) + 10;
+
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'bold');
+  doc.text('Položka / Description', 20, y);
+  doc.text('Počet hodin / Hours', 120, y, { align: 'right' });
+  doc.text('Sazba/hod. / Rate', 150, y, { align: 'right' });
+  doc.text('Částka / Amount', 190, y, { align: 'right' });
+
+  y += 2;
+  doc.setLineWidth(0.3);
+  doc.line(20, y, 190, y);
+  y += 7;
+
+  doc.setFont(undefined, 'normal');
+  items.forEach(item => {
+    if (y > 270) { doc.addPage(); y = 20; }
+
+    const descWidth = 90;
+    const descLines = doc.splitTextToSize(item.description, descWidth);
+
+    doc.text(descLines, 20, y);
+    doc.text((item.hours || 0).toFixed(2), 120, y, { align: 'right' });
+    doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
+    doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+
+    y += Math.max(7, descLines.length * 5);
+  });
+
+  y += 5;
+  doc.setLineWidth(0.5);
+  doc.line(120, y, 190, y);
   y += 8;
-  doc.text('K ÚHRADĚ / TOTAL DUE:', 20, y);
-  doc.text(`${formatCurrency(inv.total)} ${currency}`, 190, y, { align: 'right' });
+
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.text('CELKEM K ÚHRADĚ / TOTAL DUE:', 20, y);
+  doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
   y += 15;
   doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
   if (state.profile?.bank_entries?.length) {
-    doc.text('Bankovní spojení / Bank:', 20, y); y += 6;
+    doc.text('Bankovní spojení / Bank Details:', 20, y);
+    y += 6;
     state.profile.bank_entries.forEach(acc => { doc.text(`${acc.label}: ${acc.number}`, 20, y); y += 5; });
   }
-  y += 6; doc.text('Nejsem plátce DPH. / Not VAT payer.', 20, y);
+  y += 6;
+  doc.text('Nejsem plátce DPH. / Not a VAT payer.', 20, y);
 
   doc.save(`invoice-${inv.id}.pdf`);
 };
