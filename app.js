@@ -1184,7 +1184,7 @@ async function createInvoiceFromJob(jobId) {
   const invoiceId = `${prefix}-${String(next).padStart(2,'0')}`;
 
   const invoiceData = {
-    id: invoiceId,
+    invoice_number: invoiceId,
     user_id: state.currentUser.id,
     client_id: job.client_id,
     job_id: jobId,
