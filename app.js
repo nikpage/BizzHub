@@ -1209,11 +1209,7 @@ async function createInvoiceFromJob(jobId) {
     await database.saveInvoice(invoiceData);
     await database.saveJob({ ...job, billed: true });
     await loadData();
-    if (state.currentView === 'dashboard') {
-      renderDashboard(document.getElementById('mainView'));
-    } else {
-      showView('dashboard');
-    }
+    showView('dashboard');
     showToast('Invoice created successfully');
   } catch (err) {
     console.error('Failed to create invoice:', err);
@@ -1533,39 +1529,8 @@ window.viewInvoice = async (id) => {
         </tbody>
       </table>
 
-      <!-- Expenses Section -->
-      <div style="margin-top: 20px;">
-        <h4>Výdaje / Expenses</h4>
-        <table>
-
-        <div class="total-section">
-          <div class="total-line">${t('totalDue')}: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
-        </div>
-        </table>
-      </div>
-
-      <!-- Summary -->
-      <div style="margin-top: 20px; background: #f8f9fa; padding: 15px;">
-        <div style="display: flex; justify-content: space-between;">
-          <span>Práce / Work:</span>
-          <span>${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <span>Výdaje / Expenses:</span>
-          <span>700.00 ${client?.currency || 'CZK'}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; border-top: 1px solid #333; padding-top: 5px; font-weight: bold;">
-          <span>Celkem faktura / Total Invoice:</span>
-          <span>${formatCurrency((inv.total || 0) + 700)} ${client?.currency || 'CZK'}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; color: #d63384;">
-          <span>Zálohy / Deposits:</span>
-          <span>-1000.00 ${client?.currency || 'CZK'}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; border-top: 2px solid #333; padding-top: 5px; font-weight: bold; font-size: 18px; color: #198754;">
-          <span>K doplatění / Amount Due:</span>
-          <span>${formatCurrency(Math.max(0, (inv.total || 0) + 700 - 1000))} ${client?.currency || 'CZK'}</span>
-        </div>
+      <div class="total-section">
+        <div class="total-line">CELKEM K ÚHRADĚ / TOTAL DUE: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
       </div>
 
       <div class="footer-info">
