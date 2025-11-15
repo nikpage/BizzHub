@@ -235,8 +235,11 @@ function renderDashboard(container) {
           ` : state.invoices.map((inv, i) => {
             const client = state.clients.find(c => c.id === inv.client_id);
             const currency = client?.currency || 'CZK';
-            const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
-            const description = items.length > 0 ? items[0].description : '';
+            let description = '';
+            try {
+              const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
+              description = items[0]?.description || '';
+            } catch (e) {}
             const truncatedDesc = description.length > 30 ? description.substring(0, 30) + '...' : description;
             return `
             <tr>
@@ -1152,74 +1155,47 @@ async function createInvoiceFromJob(jobId) {
   if (!job) return;
 
   const client = state.clients.find(c => c.id === job.client_id);
-  if (!client) {
-    showToast('Client not found', 'error');
-    return;
-  }
+  if (!client) return showToast('Client not found', 'error');
 
   const hours = parseFloat(job.hours) || 0;
   const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
   const currency = job.currency || client.currency || 'CZK';
   const total = hours * rate;
 
-  let dateRange = '';
-  if (job.start_date && job.end_date) {
-    dateRange = `${formatDate(job.start_date)} - ${formatDate(job.end_date)}`;
-  } else if (job.start_date) {
-    dateRange = formatDate(job.start_date);
-  }
-
   const descParts = [job.name];
   if (job.description) descParts.push(job.description);
   if (job.address) descParts.push(job.address);
-  if (dateRange) descParts.push(dateRange);
-  const fullDescription = descParts.join('\n');
+  if (job.start_date) descParts.push(formatDate(job.start_date));
+  if (job.end_date) descParts.push(`– ${formatDate(job.end_date)}`);
+  const fullDescription = descParts.filter(Boolean).join('\n');
 
-  // Generate invoice ID in format YYMMDD-II
   const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const datePrefix = `${yy}${mm}${dd}`;
-
-  const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
-  let nextIncrement = 1;
-  if (todayInvoices.length > 0) {
-    const increments = todayInvoices.map(inv => {
-      const parts = inv.id.split('-');
-      return parts.length === 2 ? parseInt(parts[1]) : 0;
-    });
-    nextIncrement = Math.max(...increments) + 1;
-  }
-  const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
+  const prefix = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  const todayInvs = state.invoices.filter(i => i.id?.startsWith(prefix));
+  const next = todayInvs.length ? Math.max(...todayInvs.map(i => parseInt(i.id.split('-')[1]) || 0)) + 1 : 1;
+  const invoiceId = `${prefix}-${String(next).padStart(2,'0')}`;
 
   const invoiceData = {
     id: invoiceId,
     user_id: state.currentUser.id,
     client_id: job.client_id,
     job_id: jobId,
-    currency: currency,
-    items: JSON.stringify([{
-      description: fullDescription,
-      hours: hours,
-      rate: rate
-    }]),
-    total: total,
+    currency,
+    items: JSON.stringify([{ description: fullDescription, hours, rate, amount: total }]),
+    total,
     status: 'unpaid',
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-               .toISOString().split('T')[0]
+    created_at: now.toISOString(),
+    due_date: new Date(Date.now() + 30*86400000).toISOString().split('T')[0]
   };
-
 
   try {
     await database.saveInvoice(invoiceData);
     await database.saveJob({ ...job, billed: true });
-    await loadData();
+    await loadData(); // ← This reloads ALL invoices
     showView('dashboard');
-    showToast('Invoice created successfully');
+    showToast('Invoice created');
   } catch (err) {
-    console.error('Failed to create invoice:', err);
-    showToast('Failed to create invoice', 'error');
+    showToast('Failed', 'error');
   }
 }
 
