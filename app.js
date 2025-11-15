@@ -49,7 +49,7 @@ async function init() {
         document.body.dataset.theme = savedTheme;
 
         setupEventListeners();
-        await loadData();
+        loadData();
 
         document.getElementById('userEmail').textContent = user.email;
         showView('dashboard');
