@@ -1207,6 +1207,7 @@ async function createInvoiceFromJob(jobId) {
 
   try {
     await database.saveInvoice(invoiceData);
+    state.invoices.push(invoiceData);
     await database.saveJob({ ...job, billed: true });
     await loadData();
     showView('dashboard');
