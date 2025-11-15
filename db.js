@@ -318,6 +318,32 @@ class Database {
     }
   }
 
+  async saveJobLines(jobId, expenses, deposits) {
+    // Delete existing lines for this job first
+    await this.request(`job_lines?job_id=eq.${jobId}&user_id=eq.${this.userId}`, {
+      method: 'DELETE'
+    });
+
+    // Save expenses and deposits
+    const allLines = [...expenses, ...deposits];
+
+    if (allLines.length > 0) {
+      for (const line of allLines) {
+        await this.create('job_lines', {
+          job_id: jobId,
+          type: line.type,
+          description: line.description,
+          total: line.total
+        });
+      }
+    }
+  }
+
+  async getJobLines(jobId) {
+    const data = await this.request(`job_lines?job_id=eq.${jobId}&user_id=eq.${this.userId}&order=created_at.asc&select=*`);
+    return data || [];
+  }
+
   async markInvoicePaid(id) {
     return this.update('invoices', id, { status: 'paid' });
   }

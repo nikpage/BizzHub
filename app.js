@@ -8,7 +8,7 @@ const state = {
   clients: [],
   jobs: [],
   timesheets: [],
-  showBilledJobs: false,
+  showBilledJobs: true,
   invoices: [],
   profile: null
 };
@@ -603,6 +603,24 @@ function showClientForm(clientId = null) {
   const client = clientId ? state.clients.find(c => c.id === clientId) : {};
 
   showModal(clientId ? t('editClient') : t('addClient'), `
+    setTimeout(() => {
+      const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
+      const rateInput = document.querySelector('#jobForm input[name="rate"]');
+      const currencySelect = document.querySelector('#jobForm select[name="currency"]');
+
+      if (clientSelect && rateInput && currencySelect) {
+        clientSelect.addEventListener('change', () => {
+          const client = state.clients.find(c => c.id === clientSelect.value);
+          if (client) {
+            rateInput.value = client.rate || '';
+            currencySelect.value = client.currency || 'CZK';
+          }
+        });
+      }
+    }, 0);
+
+
+
     <form id="clientForm">
       <div class="form-grid">
         <div class="form-group">
@@ -669,12 +687,23 @@ function showClientForm(clientId = null) {
       <input type="hidden" name="id" value="${client.id || ''}">
     </form>
   `, async () => {
-    const form = document.getElementById('clientForm');
-    const formData = new FormData(form);
     const data = Object.fromEntries(formData);
 
+    // inherit client rate/currency if blank
+    if (data.client_id) {
+      const client = state.clients.find(c => c.id === data.client_id);
+      if (client) {
+        if (!data.rate || data.rate === '') data.rate = client.rate || 0;
+        if (!data.currency || data.currency === '') data.currency = client.currency || 'USD';
+      }
+    }
+
     if (!data.id) delete data.id;
+    if (data.client_id === '') delete data.client_id;
     if (data.rate === '') delete data.rate;
+    if (data.hours === '') delete data.hours;
+    if (data.start_date === '') delete data.start_date;
+    if (data.end_date === '') delete data.end_date;
 
     console.log('Saving client data:', JSON.stringify(data, null, 2));
     try {
@@ -688,48 +717,8 @@ function showClientForm(clientId = null) {
     }
   });
 }
-// Job calculation functions
-window.updateJobCalculations = () => {
-  const hours = parseFloat(document.querySelector('input[name="hours"]')?.value) || 0;
-  const rate = parseFloat(document.querySelector('input[name="rate"]')?.value) || 0;
-  const deposit = parseFloat(document.querySelector('input[name="deposit"]')?.value) || 0;
-
-  let totalExpenses = 0;
-  const expenseAmounts = document.querySelectorAll('input[name^="expense_amount_"]');
-  expenseAmounts.forEach(input => {
-    totalExpenses += parseFloat(input.value) || 0;
-  });
-
-  const laborTotal = hours * rate;
-  const totalInvoice = laborTotal + totalExpenses;
-  const totalDue = totalInvoice - deposit;
-
-  const currency = document.querySelector('select[name="currency"]')?.value || 'CZK';
-
-  document.getElementById('totalInvoice').value = `${formatCurrency(totalInvoice)} ${currency}`;
-  document.getElementById('totalDue').value = `${formatCurrency(totalDue)} ${currency}`;
-};
-
-window.removeExpense = (button) => {
-  button.parentElement.remove();
-  updateJobCalculations();
-};
-
 function showJobForm(jobId = null) {
   const job = jobId ? state.jobs.find(j => j.id === jobId) : {};
-
-  // Parse existing expenses or create empty array
-  let expenses = [];
-  if (job.expenses) {
-    try {
-      expenses = typeof job.expenses === 'string' ? JSON.parse(job.expenses) : job.expenses;
-    } catch (e) {
-      expenses = [];
-    }
-  }
-  if (expenses.length === 0) {
-    expenses = [{ description: '', amount: '' }]; // Always show at least one blank expense
-  }
 
   showModal(jobId ? t('editJob') : t('addJob'), `
     <form id="jobForm">
@@ -746,17 +735,17 @@ function showJobForm(jobId = null) {
 
         <div class="form-group">
           <label>${t('jobName')} *</label>
-          <input type="text" name="name" value="${job.name || ''}" required>
+          <input type="text" name="name" value="${job.name || ''}" required autocomplete="off">
         </div>
 
-        <div class="form-group full-width">
+        <div class="form-group">
           <label>${t('jobDescription')}</label>
-          <textarea name="description">${job.description || ''}</textarea>
+          <textarea name="description" rows="3">${job.description || ''}</textarea>
         </div>
 
-        <div class="form-group full-width">
+        <div class="form-group">
           <label>${t('address')}</label>
-          <textarea name="address">${job.address || ''}</textarea>
+          <textarea name="address" rows="3">${job.address || ''}</textarea>
         </div>
 
         <div class="form-group">
@@ -771,12 +760,12 @@ function showJobForm(jobId = null) {
 
         <div class="form-group">
           <label>${t('hours')}</label>
-          <input type="number" name="hours" value="${job.hours || ''}" step="0.01" onchange="updateJobCalculations()">
+          <input type="number" name="hours" value="${job.hours || ''}" step="0.01">
         </div>
 
         <div class="form-group">
           <label>${t('rate')}</label>
-          <input type="number" name="rate" value="${job.rate || (job.client_id ? (state.clients.find(c => c.id === job.client_id)?.rate || '') : '')}" step="0.01" onchange="updateJobCalculations()">
+          <input type="number" name="rate" value="${job.rate || (job.client_id ? (state.clients.find(c => c.id === job.client_id)?.rate || '') : '')}" step="0.01">
         </div>
 
         <div class="form-group">
@@ -795,35 +784,50 @@ function showJobForm(jobId = null) {
           </select>
         </div>
 
-        <div class="form-group full-width">
-          <label>${t('expenses')}</label>
-          <div id="expensesContainer">
-            ${expenses.map((exp, i) => `
-              <div class="expense-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
-                <input type="text" name="expense_description_${i}" value="${exp.description || ''}" placeholder="${t('expenseDescription')}" onchange="updateJobCalculations()" style="flex: 2;">
-                <input type="number" name="expense_amount_${i}" value="${exp.amount || ''}" placeholder="${t('expenseAmount')}" step="0.01" onchange="updateJobCalculations()" style="flex: 1;">
-                ${i > 0 ? '<button type="button" onclick="removeExpense(this)" style="background: red; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">×</button>' : ''}
-              </div>
-            `).join('')}
-          </div>
-          <button type="button" id="addExpenseBtn" style="margin-top: 10px; background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">${t('addExpense')}</button>
-        </div>
+      </div>
 
-        <div class="form-group">
-          <label>${t('deposit')}</label>
-          <input type="number" name="deposit" value="${job.deposit || ''}" step="0.01" onchange="updateJobCalculations()">
-        </div>
+      <!-- Job Amount Display -->
+      <div class="job-amount-display" style="background: #fff3cd; padding: 10px; margin: 15px 0; border: 1px solid #856404;">
+        <strong>${t('jobAmount')}:</strong> <span id="jobAmountCalc">0.00</span>
+      </div>
 
-        <div class="form-group">
-          <label>${t('totalInvoice')}</label>
-          <input type="text" id="totalInvoice" readonly style="background: #f5f5f5;">
-        </div>
+      <!-- Expenses Section -->
+      <div class="form-section">
+        <h4>${t('expenses')}</h4>
+        <div id="expensesList"></div>
+        <button type="button" class="add-line-btn" onclick="addExpenseLine()">${t('addExpense')}</button>
+      </div>
 
-        <div class="form-group">
-          <label>${t('totalDue')}</label>
-          <input type="text" id="totalDue" readonly style="background: #f5f5f5;">
-        </div>
+      <!-- Deposits Section -->
+      <div class="form-section">
+        <h4>${t('deposits')}</h4>
+        <div id="depositsList"></div>
+        <button type="button" class="add-line-btn" onclick="addDepositLine()">${t('addDeposit')}</button>
+      </div>
 
+      <!-- Totals Section -->
+      <div class="totals-display" style="background: #e8f4fd; border: 2px solid #0066cc; padding: 15px; margin: 15px 0;">
+        <h4 style="color: #0066cc; margin-top: 0;">${t('calculatedTotals')}</h4>
+        <div class="total-row">
+          <span>${t('jobAmount')}:</span>
+          <span id="displayJobAmount">0.00</span>
+        </div>
+        <div class="total-row">
+          <span>${t('totalExpenses')}:</span>
+          <span id="displayTotalExpenses">0.00</span>
+        </div>
+        <div class="total-row" style="border-top: 1px solid #0066cc; padding-top: 5px; font-weight: bold;">
+          <span>${t('totalInvoice')}:</span>
+          <span id="displayTotalInvoice">0.00</span>
+        </div>
+        <div class="total-row">
+          <span>${t('totalDeposits')}:</span>
+          <span id="displayTotalDeposits" style="color: #d63384;">0.00</span>
+        </div>
+        <div class="total-row" style="border-top: 2px solid #0066cc; padding-top: 5px; font-weight: bold; font-size: 1.1em;">
+          <span>${t('amountDue')}:</span>
+          <span id="displayAmountDue" style="color: #198754;">0.00</span>
+        </div>
       </div>
 
       <input type="hidden" name="id" value="${job.id || ''}">
@@ -832,22 +836,6 @@ function showJobForm(jobId = null) {
       const form = document.getElementById('jobForm');
       const formData = new FormData(form);
       const data = Object.fromEntries(formData);
-
-      // Collect expenses
-      const expensesList = [];
-      let i = 0;
-      while (formData.has(`expense_description_${i}`)) {
-        const desc = formData.get(`expense_description_${i}`);
-        const amt = formData.get(`expense_amount_${i}`);
-        if (desc || amt) {
-          expensesList.push({
-            description: desc,
-            amount: parseFloat(amt) || 0
-          });
-        }
-        i++;
-      }
-      data.expenses = JSON.stringify(expensesList);
 
       if (data.client_id) {
         const client = state.clients.find(c => c.id === data.client_id);
@@ -863,14 +851,18 @@ function showJobForm(jobId = null) {
       if (data.hours === '') delete data.hours;
       if (data.start_date === '') delete data.start_date;
       if (data.end_date === '') delete data.end_date;
-      if (data.deposit === '') delete data.deposit;
+
+      // Collect expenses and deposits
+      const expenses = collectLineItems('expense');
+      const deposits = collectLineItems('deposit');
 
       try {
-        // Ensure billed defaults to false for new jobs
-        if (!data.id) {
-          data.billed = false;
-        }
-        await database.saveJob(data);
+        const savedJob = await database.saveJob(data);
+        const jobId = savedJob.id || data.id;
+
+        // Save expenses and deposits to job_lines table
+        await database.saveJobLines(jobId, expenses, deposits);
+
         state.jobs = await database.getJobs();
         showView('jobs');
         showToast(t('saveSuccess'));
@@ -879,7 +871,6 @@ function showJobForm(jobId = null) {
         showToast('Save failed', 'error');
       }
     });
-
     const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
     const rateInput = document.querySelector('#jobForm input[name="rate"]');
     const currencySelect = document.querySelector('#jobForm select[name="currency"]');
@@ -894,7 +885,6 @@ function showJobForm(jobId = null) {
         }
         rateInput.value = client.rate || '';
         currencySelect.value = client.currency || 'CZK';
-        updateJobCalculations();
       };
 
       clientSelect.addEventListener('change', applyClientDefaults);
@@ -904,24 +894,169 @@ function showJobForm(jobId = null) {
       }
     }
 
-    // Add expense button functionality
-    document.getElementById('addExpenseBtn').addEventListener('click', () => {
-      const container = document.getElementById('expensesContainer');
-      const newIndex = container.children.length;
-      const newExpense = document.createElement('div');
-      newExpense.className = 'expense-row';
-      newExpense.style = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
-      newExpense.innerHTML = `
-        <input type="text" name="expense_description_${newIndex}" placeholder="${t('expenseDescription')}" onchange="updateJobCalculations()" style="flex: 2;">
-        <input type="number" name="expense_amount_${newIndex}" placeholder="${t('expenseAmount')}" step="0.01" onchange="updateJobCalculations()" style="flex: 1;">
-        <button type="button" onclick="removeExpense(this)" style="background: red; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">×</button>
-      `;
-      container.appendChild(newExpense);
+    // Initialize expenses and deposits if editing
+    if (jobId) {
+      loadJobLines(jobId);
+    }
+
+    // Setup calculation updates
+    setupJobCalculations();
+  }
+
+// Helper functions for job form expenses and deposits
+function addExpenseLine(description = '', amount = '') {
+  const expensesList = document.getElementById('expensesList');
+  const lineId = 'expense_' + Date.now();
+
+  const lineHtml = `
+    <div class="line-item" id="${lineId}">
+      <input type="text" placeholder="${t('expenseDescription')}" value="${description}"
+             onchange="updateCalculations()" style="flex: 1; margin-right: 10px;">
+      <input type="number" step="0.01" placeholder="0.00" value="${amount}"
+             onchange="updateCalculations()" style="width: 100px; margin-right: 10px;">
+      <button type="button" onclick="removeLine('${lineId}')"
+              style="padding: 5px 8px; background: #dc3545; color: white; border: none; cursor: pointer;">×</button>
+    </div>
+  `;
+
+  expensesList.insertAdjacentHTML('beforeend', lineHtml);
+  updateCalculations();
+}
+
+function addDepositLine(description = '', amount = '') {
+  const depositsList = document.getElementById('depositsList');
+  const lineId = 'deposit_' + Date.now();
+
+  const lineHtml = `
+    <div class="line-item" id="${lineId}">
+      <input type="text" placeholder="${t('depositDescription')}" value="${description}"
+             onchange="updateCalculations()" style="flex: 1; margin-right: 10px;">
+      <input type="number" step="0.01" placeholder="0.00" value="${amount}"
+             onchange="updateCalculations()" style="width: 100px; margin-right: 10px;">
+      <button type="button" onclick="removeLine('${lineId}')"
+              style="padding: 5px 8px; background: #dc3545; color: white; border: none; cursor: pointer;">×</button>
+    </div>
+  `;
+
+  depositsList.insertAdjacentHTML('beforeend', lineHtml);
+  updateCalculations();
+}
+
+function removeLine(lineId) {
+  document.getElementById(lineId)?.remove();
+  updateCalculations();
+}
+
+function collectLineItems(type) {
+  const container = type === 'expense' ? 'expensesList' : 'depositsList';
+  const lines = document.querySelectorAll(`#${container} .line-item`);
+  const items = [];
+
+  lines.forEach(line => {
+    const description = line.querySelector('input[type="text"]').value.trim();
+    const amount = parseFloat(line.querySelector('input[type="number"]').value) || 0;
+
+    if (description && amount > 0) {
+      items.push({
+        type: type,
+        description: description,
+        total: type === 'deposit' ? -amount : amount // Store deposits as negative
+      });
+    }
+  });
+
+  return items;
+}
+
+function setupJobCalculations() {
+  const hoursInput = document.querySelector('#jobForm input[name="hours"]');
+  const rateInput = document.querySelector('#jobForm input[name="rate"]');
+
+  if (hoursInput && rateInput) {
+    hoursInput.addEventListener('input', updateCalculations);
+    rateInput.addEventListener('input', updateCalculations);
+  }
+
+  updateCalculations();
+}
+
+function updateCalculations() {
+  const hours = parseFloat(document.querySelector('#jobForm input[name="hours"]')?.value) || 0;
+  const rate = parseFloat(document.querySelector('#jobForm input[name="rate"]')?.value) || 0;
+
+  const jobAmount = hours * rate;
+
+  // Calculate expenses total
+  const expenseInputs = document.querySelectorAll('#expensesList input[type="number"]');
+  let totalExpenses = 0;
+  expenseInputs.forEach(input => {
+    totalExpenses += parseFloat(input.value) || 0;
+  });
+
+  // Calculate deposits total
+  const depositInputs = document.querySelectorAll('#depositsList input[type="number"]');
+  let totalDeposits = 0;
+  depositInputs.forEach(input => {
+    totalDeposits += parseFloat(input.value) || 0;
+  });
+
+  const totalInvoice = jobAmount + totalExpenses;
+  const amountDue = totalInvoice - totalDeposits;
+
+  // Update displays
+  const jobAmountCalc = document.getElementById('jobAmountCalc');
+  if (jobAmountCalc) {
+    jobAmountCalc.textContent = formatCurrency(jobAmount);
+  }
+
+  const displayJobAmount = document.getElementById('displayJobAmount');
+  if (displayJobAmount) {
+    displayJobAmount.textContent = formatCurrency(jobAmount);
+  }
+
+  const displayTotalExpenses = document.getElementById('displayTotalExpenses');
+  if (displayTotalExpenses) {
+    displayTotalExpenses.textContent = formatCurrency(totalExpenses);
+  }
+
+  const displayTotalInvoice = document.getElementById('displayTotalInvoice');
+  if (displayTotalInvoice) {
+    displayTotalInvoice.textContent = formatCurrency(totalInvoice);
+  }
+
+  const displayTotalDeposits = document.getElementById('displayTotalDeposits');
+  if (displayTotalDeposits) {
+    displayTotalDeposits.textContent = '-' + formatCurrency(totalDeposits);
+  }
+
+  const displayAmountDue = document.getElementById('displayAmountDue');
+  if (displayAmountDue) {
+    displayAmountDue.textContent = formatCurrency(amountDue);
+  }
+}
+
+async function loadJobLines(jobId) {
+  try {
+    const lines = await database.getJobLines(jobId);
+
+    lines.forEach(line => {
+      if (line.type === 'expense') {
+        addExpenseLine(line.description, line.total);
+      } else if (line.type === 'deposit') {
+        addDepositLine(line.description, Math.abs(line.total)); // Convert back to positive for display
+      }
     });
 
-    // Initial calculation
-    setTimeout(updateJobCalculations, 100);
+    updateCalculations();
+  } catch (err) {
+    console.error('Failed to load job lines:', err);
+  }
 }
+
+// Make functions available globally
+window.addExpenseLine = addExpenseLine;
+window.addDepositLine = addDepositLine;
+window.removeLine = removeLine;
 
 
 function showTimesheetForm(timesheetId = null) {
@@ -1025,20 +1160,7 @@ async function createInvoiceFromJob(jobId) {
   const hours = parseFloat(job.hours) || 0;
   const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
   const currency = job.currency || client.currency || 'CZK';
-  const laborTotal = hours * rate;
-
-  // Parse expenses
-  let expenses = [];
-  if (job.expenses) {
-    try {
-      expenses = typeof job.expenses === 'string' ? JSON.parse(job.expenses) : job.expenses;
-    } catch (e) {
-      expenses = [];
-    }
-  }
-
-  const totalExpenses = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
-  const total = laborTotal + totalExpenses;
+  const total = hours * rate;
 
   let dateRange = '';
   if (job.start_date && job.end_date) {
@@ -1071,37 +1193,15 @@ async function createInvoiceFromJob(jobId) {
   }
   const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
 
-  // Create items array with labor and expenses
-  const items = [];
-
-  // Add labor item
-  if (hours > 0) {
-    items.push({
-      description: fullDescription,
-      hours: hours,
-      rate: rate,
-      amount: laborTotal
-    });
-  }
-
-  // Add expense items
-  expenses.forEach(expense => {
-    if (expense.description && (parseFloat(expense.amount) || 0) > 0) {
-      items.push({
-        description: expense.description,
-        hours: 0,
-        rate: 0,
-        amount: parseFloat(expense.amount)
-      });
-    }
-  });
-
   const invoiceData = {
     id: invoiceId,
     client_id: job.client_id,
-    items: JSON.stringify(items),
+    items: JSON.stringify([{
+      description: fullDescription,
+      hours: hours,
+      rate: rate
+    }]),
     total: total,
-    deposit: job.deposit || 0,
     status: 'unpaid',
     due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   };
@@ -1422,18 +1522,16 @@ window.viewInvoice = async (id) => {
           ${items.map(item => `
             <tr>
               <td>${item.description}</td>
-              <td class="right">${item.hours ? (item.hours || 0).toFixed(2) : '-'}</td>
-              <td class="right">${item.rate ? formatCurrency(item.rate || 0) + ' ' + (client?.currency || 'CZK') : '-'}</td>
-              <td class="right">${formatCurrency(item.amount || (item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
+              <td class="right">${(item.hours || 0).toFixed(2)}</td>
+              <td class="right">${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}</td>
+              <td class="right">${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
 
       <div class="total-section">
-        <div class="total-line">CELKEM FAKTURA / TOTAL INVOICE: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
-        ${inv.deposit ? `<div class="total-line">ZÁLOHA / DEPOSIT: -${formatCurrency(inv.deposit || 0)} ${client?.currency || 'CZK'}</div>` : ''}
-        <div class="total-line"><strong>CELKEM K ÚHRADĚ / TOTAL DUE: ${formatCurrency((inv.total || 0) - (inv.deposit || 0))} ${client?.currency || 'CZK'}</strong></div>
+        <div class="total-line">CELKEM K ÚHRADĚ / TOTAL DUE: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
       </div>
 
       <div class="footer-info">
@@ -1541,9 +1639,9 @@ window.downloadInvoice = async (id) => {
     const descLines = doc.splitTextToSize(item.description, descWidth);
 
     doc.text(descLines, 20, y);
-    doc.text(item.hours ? (item.hours || 0).toFixed(2) : '-', 120, y, { align: 'right' });
-    doc.text(item.rate ? `${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}` : '-', 150, y, { align: 'right' });
-    doc.text(`${formatCurrency(item.amount || (item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+    doc.text((item.hours || 0).toFixed(2), 120, y, { align: 'right' });
+    doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
+    doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
     y += Math.max(7, descLines.length * 5);
   });
@@ -1555,18 +1653,8 @@ window.downloadInvoice = async (id) => {
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
-  doc.text('CELKEM FAKTURA / TOTAL INVOICE:', 20, y);
-  doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-
-  if (inv.deposit) {
-    y += 8;
-    doc.text('ZÁLOHA / DEPOSIT:', 20, y);
-    doc.text(`-${formatCurrency(inv.deposit || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-  }
-
-  y += 8;
   doc.text('CELKEM K ÚHRADĚ / TOTAL DUE:', 20, y);
-  doc.text(`${formatCurrency((inv.total || 0) - (inv.deposit || 0))} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+  doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
   y += 15;
   doc.setFontSize(11);

@@ -66,13 +66,6 @@ export const LANG = {
     startDate: 'Start Date',
     endDate: 'End Date',
     hours: 'Hours',
-    expenses: 'Expenses',
-    addExpense: 'Add Expense',
-    expenseDescription: 'Expense Description',
-    expenseAmount: 'Amount',
-    deposit: 'Deposit',
-    totalInvoice: 'Total Invoice',
-    totalDue: 'Total Due',
 
     // Work Logs
     addLog: 'Add Log',
@@ -131,6 +124,24 @@ export const LANG = {
     confirmDeleteForever: 'This will permanently delete the item. Continue?',
     noData: 'No data available',
     loading: 'Loading...',
+
+    // Expenses and Deposits
+    expenses: 'Expenses',
+    addExpense: 'Add Expense',
+    deposits: 'Deposits',
+    addDeposit: 'Add Deposit',
+    expenseDescription: 'Expense Description',
+    depositDescription: 'Deposit Description',
+    lineAmount: 'Amount',
+    removeItem: 'Remove',
+
+    // Totals
+    jobAmount: 'Job Amount',
+    totalExpenses: 'Total Expenses',
+    totalInvoice: 'Total Invoice',
+    totalDeposits: 'Total Deposits',
+    amountDue: 'Amount Due',
+    calculatedTotals: 'Calculated Totals',
   },
 
   cs: {
@@ -199,13 +210,6 @@ export const LANG = {
     startDate: 'Datum zahájení',
     endDate: 'Datum ukončení',
     hours: 'Hodiny',
-    expenses: 'Výdaje',
-    addExpense: 'Přidat výdaj',
-    expenseDescription: 'Popis výdaje',
-    expenseAmount: 'Částka',
-    deposit: 'Záloha',
-    totalInvoice: 'Celkem faktura',
-    totalDue: 'K doplatku',
 
     // Work Logs
     addLog: 'Přidat záznam',
@@ -264,6 +268,24 @@ export const LANG = {
     confirmDeleteForever: 'Tímto položku trvale smažete. Pokračovat?',
     noData: 'Žádná data k zobrazení',
     loading: 'Načítání...',
+
+    // Expenses and Deposits
+    expenses: 'Výdaje',
+    addExpense: 'Přidat výdaj',
+    deposits: 'Zálohy',
+    addDeposit: 'Přidat zálohu',
+    expenseDescription: 'Popis výdaje',
+    depositDescription: 'Popis zálohy',
+    lineAmount: 'Částka',
+    removeItem: 'Odstranit',
+
+    // Totals
+    jobAmount: 'Částka za práci',
+    totalExpenses: 'Celkové výdaje',
+    totalInvoice: 'Celková faktura',
+    totalDeposits: 'Celkové zálohy',
+    amountDue: 'K úhradě',
+    calculatedTotals: 'Vypočtené součty',
   }
 };
 
