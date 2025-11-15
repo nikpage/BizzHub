@@ -254,6 +254,20 @@ function renderDashboard(container) {
               </td>
             </tr>
             `;
+              <td>${formatCurrency(inv.total || 0)} ${currency}</td>
+              <td>
+                <span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}">
+                  ${t(inv.status || 'pending')}
+                </span>
+              </td>
+              <td>
+                <button class="action-btn" onclick="window.viewInvoice('${inv.id}')" title="${t('viewPdf')}">👁️</button>
+                <button class="action-btn" onclick="window.downloadInvoice('${inv.id}')" title="${t('downloadPdf')}">⬇️</button>
+                <button class="action-btn" onclick="window.markInvoicePaid('${inv.id}')" title="${t('markPaid')}">✓</button>
+                <button class="action-btn" onclick="window.deleteInvoice('${inv.id}')" title="${t('delete')}">🗑️</button>
+              </td>
+            </tr>
+            `;
           }).join('')}
         </tbody>
       </table>
