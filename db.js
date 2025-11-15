@@ -119,8 +119,9 @@ class Database {
   // OPTIMIZED: Load all dashboard data at once
   async loadDashboard() {
     const cacheKey = this.getCacheKey('dashboard');
-    const cached = this.getFromCache(cacheKey);
-    if (cached) return cached;
+    // REMOVED CACHE CHECK - always fetch fresh dashboard data
+    // const cached = this.getFromCache(cacheKey);
+    // if (cached) return cached;
 
     try {
       // Try batch endpoint first (if available)
