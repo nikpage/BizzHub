@@ -169,13 +169,10 @@ class Database {
   }
 
   async create(table, record) {
-    // Remove id from record if it exists - let database generate it
-    const { id, ...recordWithoutId } = record;
-
     const data = await this.request(table, {
       method: 'POST',
       body: {
-        ...recordWithoutId,
+        ...record,
         user_id: this.userId,
         deleted: false,
         created_at: new Date().toISOString(),
