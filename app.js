@@ -738,10 +738,6 @@ function showJobForm(jobId = null) {
           <input type="text" name="name" value="${job.name || ''}" required autocomplete="off">
         </div>
 
-      </div>
-
-      <!-- Description and Address on same row -->
-      <div class="form-grid">
         <div class="form-group">
           <label>${t('jobDescription')}</label>
           <textarea name="description" rows="3">${job.description || ''}</textarea>
@@ -751,10 +747,6 @@ function showJobForm(jobId = null) {
           <label>${t('address')}</label>
           <textarea name="address" rows="3">${job.address || ''}</textarea>
         </div>
-      </div>
-
-      <!-- Continue with dates and other fields -->
-      <div class="form-grid">
 
         <div class="form-group">
           <label>${t('startDate')}</label>
@@ -794,18 +786,23 @@ function showJobForm(jobId = null) {
 
       </div>
 
+      <!-- Job Amount Display -->
+      <div class="job-amount-display" style="background: #fff3cd; padding: 10px; margin: 15px 0; border: 1px solid #856404;">
+        <strong>${t('jobAmount')}:</strong> <span id="jobAmountCalc">0.00</span>
+      </div>
+
       <!-- Expenses Section -->
       <div class="form-section">
         <h4>${t('expenses')}</h4>
         <div id="expensesList"></div>
-        <button type="button" class="btn btn-secondary" onclick="addExpenseLine()">${t('addExpense')}</button>
+        <button type="button" class="add-line-btn" onclick="addExpenseLine()">${t('addExpense')}</button>
       </div>
 
       <!-- Deposits Section -->
       <div class="form-section">
         <h4>${t('deposits')}</h4>
         <div id="depositsList"></div>
-        <button type="button" class="btn btn-secondary" onclick="addDepositLine()">${t('addDeposit')}</button>
+        <button type="button" class="add-line-btn" onclick="addDepositLine()">${t('addDeposit')}</button>
       </div>
 
       <!-- Totals Section -->
@@ -914,16 +911,16 @@ function addExpenseLine(description = '', amount = '') {
   const lineHtml = `
     <div class="line-item" id="${lineId}">
       <input type="text" placeholder="${t('expenseDescription')}" value="${description}"
-             onchange="window.updateCalculations()" style="flex: 1; margin-right: 10px;">
+             onchange="updateCalculations()" style="flex: 1; margin-right: 10px;">
       <input type="number" step="0.01" placeholder="0.00" value="${amount}"
-             onchange="window.updateCalculations()" style="width: 100px; margin-right: 10px;">
+             onchange="updateCalculations()" style="width: 100px; margin-right: 10px;">
       <button type="button" onclick="removeLine('${lineId}')"
               style="padding: 5px 8px; background: #dc3545; color: white; border: none; cursor: pointer;">×</button>
     </div>
   `;
 
   expensesList.insertAdjacentHTML('beforeend', lineHtml);
-  window.updateCalculations();
+  updateCalculations();
 }
 
 function addDepositLine(description = '', amount = '') {
@@ -933,21 +930,21 @@ function addDepositLine(description = '', amount = '') {
   const lineHtml = `
     <div class="line-item" id="${lineId}">
       <input type="text" placeholder="${t('depositDescription')}" value="${description}"
-             onchange="window.updateCalculations()" style="flex: 1; margin-right: 10px;">
+             onchange="updateCalculations()" style="flex: 1; margin-right: 10px;">
       <input type="number" step="0.01" placeholder="0.00" value="${amount}"
-             onchange="window.updateCalculations()" style="width: 100px; margin-right: 10px;">
+             onchange="updateCalculations()" style="width: 100px; margin-right: 10px;">
       <button type="button" onclick="removeLine('${lineId}')"
               style="padding: 5px 8px; background: #dc3545; color: white; border: none; cursor: pointer;">×</button>
     </div>
   `;
 
   depositsList.insertAdjacentHTML('beforeend', lineHtml);
-  window.updateCalculations();
+  updateCalculations();
 }
 
 function removeLine(lineId) {
   document.getElementById(lineId)?.remove();
-  window.updateCalculations();
+  updateCalculations();
 }
 
 function collectLineItems(type) {
@@ -1007,6 +1004,11 @@ function updateCalculations() {
   const amountDue = totalInvoice - totalDeposits;
 
   // Update displays
+  const jobAmountCalc = document.getElementById('jobAmountCalc');
+  if (jobAmountCalc) {
+    jobAmountCalc.textContent = formatCurrency(jobAmount);
+  }
+
   const displayJobAmount = document.getElementById('displayJobAmount');
   if (displayJobAmount) {
     displayJobAmount.textContent = formatCurrency(jobAmount);
@@ -1024,7 +1026,7 @@ function updateCalculations() {
 
   const displayTotalDeposits = document.getElementById('displayTotalDeposits');
   if (displayTotalDeposits) {
-    displayTotalDeposits.textContent = totalDeposits > 0 ? '-' + formatCurrency(totalDeposits) : '-' + formatCurrency(0);
+    displayTotalDeposits.textContent = '-' + formatCurrency(totalDeposits);
   }
 
   const displayAmountDue = document.getElementById('displayAmountDue');
@@ -1039,13 +1041,13 @@ async function loadJobLines(jobId) {
 
     lines.forEach(line => {
       if (line.type === 'expense') {
-        addExpenseLine(line.description, line.total); // Use generated total field
+        addExpenseLine(line.description, line.total);
       } else if (line.type === 'deposit') {
         addDepositLine(line.description, Math.abs(line.total)); // Convert back to positive for display
       }
     });
 
-    window.updateCalculations();
+    updateCalculations();
   } catch (err) {
     console.error('Failed to load job lines:', err);
   }
@@ -1055,7 +1057,6 @@ async function loadJobLines(jobId) {
 window.addExpenseLine = addExpenseLine;
 window.addDepositLine = addDepositLine;
 window.removeLine = removeLine;
-window.updateCalculations = updateCalculations;
 
 
 function showTimesheetForm(timesheetId = null) {
@@ -1156,21 +1157,10 @@ async function createInvoiceFromJob(jobId) {
     return;
   }
 
-  // Get job lines (expenses and deposits)
-  const jobLines = await database.getJobLines(jobId);
-  const expenses = jobLines.filter(line => line.type === 'expense');
-  const deposits = jobLines.filter(line => line.type === 'deposit');
-
   const hours = parseFloat(job.hours) || 0;
   const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
   const currency = job.currency || client.currency || 'CZK';
-  const jobAmount = hours * rate;
-
-  // Calculate totals
-  const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.total || 0), 0);
-  const totalDeposits = Math.abs(deposits.reduce((sum, dep) => sum + parseFloat(dep.total || 0), 0)); // Convert back to positive for display
-  const totalInvoice = jobAmount + totalExpenses;
-  const amountDue = totalInvoice - totalDeposits;
+  const total = hours * rate;
 
   let dateRange = '';
   if (job.start_date && job.end_date) {
@@ -1184,33 +1174,6 @@ async function createInvoiceFromJob(jobId) {
   if (job.address) descParts.push(job.address);
   if (dateRange) descParts.push(dateRange);
   const fullDescription = descParts.join('\n');
-
-  // Build items array with job, expenses, and deposits
-  const items = [];
-
-  // Main job item
-  items.push({
-    description: fullDescription,
-    hours: hours,
-    rate: rate,
-    amount: jobAmount
-  });
-
-  // Add expenses
-  expenses.forEach(expense => {
-    items.push({
-      description: `${t('expenses')}: ${expense.description}`,
-      amount: parseFloat(expense.total || 0)
-    });
-  });
-
-  // Add deposits (shown as negative)
-  deposits.forEach(deposit => {
-    items.push({
-      description: `${t('deposits')}: ${deposit.description}`,
-      amount: parseFloat(deposit.total || 0) // Already negative in DB
-    });
-  });
 
   // Generate invoice ID in format YYMMDD-II
   const now = new Date();
@@ -1233,20 +1196,14 @@ async function createInvoiceFromJob(jobId) {
   const invoiceData = {
     id: invoiceId,
     client_id: job.client_id,
-    job_id: jobId,
-    items: JSON.stringify(items),
-    subtotal: totalInvoice,
-    total: amountDue, // Amount due after deposits
-    currency: currency,
+    items: JSON.stringify([{
+      description: fullDescription,
+      hours: hours,
+      rate: rate
+    }]),
+    total: total,
     status: 'unpaid',
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    meta: JSON.stringify({
-      jobAmount: jobAmount,
-      totalExpenses: totalExpenses,
-      totalDeposits: totalDeposits,
-      totalInvoice: totalInvoice,
-      amountDue: amountDue
-    })
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   };
 
   try {
@@ -1665,6 +1622,8 @@ window.downloadInvoice = async (id) => {
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
   doc.text('Položka / Description', 20, y);
+  doc.text('Počet hodin / Hours', 120, y, { align: 'right' });
+  doc.text('Sazba/hod. / Rate', 150, y, { align: 'right' });
   doc.text('Částka / Amount', 190, y, { align: 'right' });
 
   y += 2;
@@ -1673,99 +1632,24 @@ window.downloadInvoice = async (id) => {
   y += 7;
 
   doc.setFont(undefined, 'normal');
-
-  // Separate job items from expenses/deposits
-  const jobItems = items.filter(item => item.hours !== undefined);
-  const expenseItems = items.filter(item => item.description?.startsWith(t('expenses') + ':'));
-  const depositItems = items.filter(item => item.description?.startsWith(t('deposits') + ':'));
-
-  // Show job items with hours/rate columns
-  jobItems.forEach(item => {
+  items.forEach(item => {
     if (y > 270) { doc.addPage(); y = 20; }
 
     const descWidth = 90;
     const descLines = doc.splitTextToSize(item.description, descWidth);
 
     doc.text(descLines, 20, y);
-    doc.text(`${(item.hours || 0).toFixed(2)} hod × ${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 120, y);
-    doc.text(`${formatCurrency(item.amount || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+    doc.text((item.hours || 0).toFixed(2), 120, y, { align: 'right' });
+    doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
+    doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
     y += Math.max(7, descLines.length * 5);
   });
-
-  // Show expenses
-  if (expenseItems.length > 0) {
-    y += 5;
-    doc.setFont(undefined, 'bold');
-    doc.text(`${t('expenses')}:`, 20, y);
-    doc.setFont(undefined, 'normal');
-    y += 7;
-
-    expenseItems.forEach(item => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      const description = item.description.replace(t('expenses') + ': ', '');
-      doc.text(`  ${description}`, 20, y);
-      doc.text(`${formatCurrency(item.amount || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-      y += 7;
-    });
-  }
-
-  // Show deposits
-  if (depositItems.length > 0) {
-    y += 5;
-    doc.setFont(undefined, 'bold');
-    doc.text(`${t('deposits')}:`, 20, y);
-    doc.setFont(undefined, 'normal');
-    y += 7;
-
-    depositItems.forEach(item => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      const description = item.description.replace(t('deposits') + ': ', '');
-      doc.text(`  ${description}`, 20, y);
-      doc.text(`${formatCurrency(item.amount || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-      y += 7;
-    });
-  }
 
   y += 5;
   doc.setLineWidth(0.5);
   doc.line(120, y, 190, y);
   y += 8;
-
-  // Get meta data for totals
-  const meta = inv.meta ? (typeof inv.meta === 'string' ? JSON.parse(inv.meta) : inv.meta) : {};
-
-  // Show detailed totals if we have meta data
-  if (meta.jobAmount !== undefined) {
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`${t('jobAmount')}:`, 120, y);
-    doc.text(`${formatCurrency(meta.jobAmount || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-    y += 6;
-
-    if (meta.totalExpenses > 0) {
-      doc.text(`${t('totalExpenses')}:`, 120, y);
-      doc.text(`${formatCurrency(meta.totalExpenses || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-      y += 6;
-    }
-
-    doc.setFont(undefined, 'bold');
-    doc.text(`${t('totalInvoice')}:`, 120, y);
-    doc.text(`${formatCurrency(meta.totalInvoice || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-    y += 6;
-
-    if (meta.totalDeposits > 0) {
-      doc.setFont(undefined, 'normal');
-      doc.text(`${t('totalDeposits')}:`, 120, y);
-      doc.text(`-${formatCurrency(meta.totalDeposits || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-      y += 6;
-    }
-
-    y += 3;
-    doc.setLineWidth(1);
-    doc.line(120, y, 190, y);
-    y += 8;
-  }
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
