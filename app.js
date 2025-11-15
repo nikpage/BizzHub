@@ -1180,11 +1180,11 @@ async function createInvoiceFromJob(jobId) {
   const now = new Date();
   const prefix = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
   const todayInvs = state.invoices.filter(i => i.id?.startsWith(prefix));
-  const next = todayInvs.length ? Math.max(...todayInvs.map(i => parseInt(i.id.split('-')[1]) || 0)) + 1 : 1;
+  const next = todayInvs.length ? Math.max(...todayInvs.map(i => parseInt((i.id || '').split('-')[1]) || 0)) + 1 : 1;
   const invoiceId = `${prefix}-${String(next).padStart(2,'0')}`;
 
   const invoiceData = {
-    invoice_number: invoiceId,
+    id: invoiceId,
     user_id: state.currentUser.id,
     client_id: job.client_id,
     job_id: jobId,

@@ -263,10 +263,10 @@ class Database {
   }
 
   async saveJob(job) {
-    const saved = job.id
-      ? await this.update('jobs', job.id, job)
-      : await this.create('jobs', job);
-    return saved;
+    if (job.id) {
+      return await this.update('jobs', job.id, job);
+    }
+    return await this.create('jobs', job);
   }
 
   async deleteJob(id) {
