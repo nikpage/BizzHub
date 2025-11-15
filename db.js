@@ -169,21 +169,15 @@ class Database {
   }
 
   async create(table, record) {
-    const baseRecord = {
-      ...record,
-      user_id: this.userId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    // Only add deleted:false for tables that support soft delete
-    if (['clients','jobs','timesheets','invoices'].includes(table)) {
-      baseRecord.deleted = false;
-    }
-
     const data = await this.request(table, {
       method: 'POST',
-      body: baseRecord
+      body: {
+        ...record,
+        user_id: this.userId,
+        deleted: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
     });
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error(`Failed to create ${table} record - database returned no data`);
@@ -313,8 +307,7 @@ class Database {
         return this.update('invoices', invoice.id, invoice);
       }
     }
-    const { id, ...invoiceData } = invoice;
-    return this.create('invoices', invoiceData);
+    return this.create('invoices', invoice);
   }
 
   async deleteInvoice(id) {
