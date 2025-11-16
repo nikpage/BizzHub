@@ -56,6 +56,7 @@ export const LANG = {
     idNumbers: 'ID Numbers',
     idLabel: 'Label',
     idNumber: 'Number',
+    dueDateDays: 'Due Date (days)',
 
     // Jobs
     addJob: 'Add Job',
@@ -194,6 +195,7 @@ export const LANG = {
     idNumbers: 'Identifikační čísla',
     idLabel: 'Typ',
     idNumber: 'Číslo',
+    dueDateDays: 'Splatnost (dny)',
 
     // Jobs
     addJob: 'Přidat zakázku',

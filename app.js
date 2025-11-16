@@ -21,7 +21,10 @@ function formatCurrency(amount) {
 function formatDate(dateString) {
   if (!dateString) return '-';
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
 }
 
 // Initialize app
@@ -603,24 +606,6 @@ function showClientForm(clientId = null) {
   const client = clientId ? state.clients.find(c => c.id === clientId) : {};
 
   showModal(clientId ? t('editClient') : t('addClient'), `
-    setTimeout(() => {
-      const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
-      const rateInput = document.querySelector('#jobForm input[name="rate"]');
-      const currencySelect = document.querySelector('#jobForm select[name="currency"]');
-
-      if (clientSelect && rateInput && currencySelect) {
-        clientSelect.addEventListener('change', () => {
-          const client = state.clients.find(c => c.id === clientSelect.value);
-          if (client) {
-            rateInput.value = client.rate || '';
-            currencySelect.value = client.currency || 'CZK';
-          }
-        });
-      }
-    }, 0);
-
-
-
     <form id="clientForm">
       <div class="form-grid">
         <div class="form-group">
@@ -667,6 +652,11 @@ function showClientForm(clientId = null) {
           </select>
         </div>
 
+        <div class="form-group">
+          <label>${t('dueDateDays')}</label>
+          <input type="number" name="due_date_days" value="${client.due_date_days || 30}" min="0">
+        </div>
+
         <div class="form-group full-width">
           <h3 class="mb-2">${t('idNumbers')}</h3>
           ${[1,2,3,4].map(i => `
@@ -687,23 +677,13 @@ function showClientForm(clientId = null) {
       <input type="hidden" name="id" value="${client.id || ''}">
     </form>
   `, async () => {
+    const form = document.getElementById('clientForm');
+    const formData = new FormData(form);
     const data = Object.fromEntries(formData);
 
-    // inherit client rate/currency if blank
-    if (data.client_id) {
-      const client = state.clients.find(c => c.id === data.client_id);
-      if (client) {
-        if (!data.rate || data.rate === '') data.rate = client.rate || 0;
-        if (!data.currency || data.currency === '') data.currency = client.currency || 'USD';
-      }
-    }
-
     if (!data.id) delete data.id;
-    if (data.client_id === '') delete data.client_id;
     if (data.rate === '') delete data.rate;
-    if (data.hours === '') delete data.hours;
-    if (data.start_date === '') delete data.start_date;
-    if (data.end_date === '') delete data.end_date;
+    if (data.due_date_days === '') data.due_date_days = 30;
 
     console.log('Saving client data:', JSON.stringify(data, null, 2));
     try {
@@ -1165,9 +1145,9 @@ async function createInvoiceFromJob(jobId) {
   // Build items array with job work, expenses, and deposits
   const items = [];
 
-  // Main job line item
+  // Main job line item - use description if available, otherwise name
   items.push({
-    description: job.name || 'Job',
+    description: job.description || job.name || 'Job',
     hours: hours,
     rate: rate,
     amount: jobTotal
@@ -1206,6 +1186,7 @@ async function createInvoiceFromJob(jobId) {
   const invoiceNumber = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
 
   const invoiceId = crypto.randomUUID();
+  const dueDateDays = parseInt(client.due_date_days) || 30;
   const invoiceData = {
     id: invoiceId,
     invoice_number: invoiceNumber,
@@ -1216,7 +1197,7 @@ async function createInvoiceFromJob(jobId) {
     total: dueNow,
     currency: currency,
     status: 'unpaid',
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    due_date: new Date(Date.now() + dueDateDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     meta: JSON.stringify({
       job_name: job.name,
       job_description: job.description,
@@ -1545,11 +1526,10 @@ window.viewInvoice = async (id) => {
         </div>
       </div>
 
-      ${meta.job_name || meta.job_description || meta.job_address ? `
+      ${meta.job_name || meta.job_address ? `
         <div class="job-details">
           <h3>Detaily zakázky / Job Details</h3>
           ${meta.job_name ? `<div class="job-detail-row"><strong>Název / Name:</strong> ${meta.job_name}</div>` : ''}
-          ${meta.job_description ? `<div class="job-detail-row"><strong>Popis / Description:</strong> ${meta.job_description}</div>` : ''}
           ${meta.job_address ? `<div class="job-detail-row"><strong>Adresa / Address:</strong> ${meta.job_address}</div>` : ''}
           ${meta.job_start_date || meta.job_end_date ? `
             <div class="job-detail-row">
@@ -1698,7 +1678,7 @@ window.downloadInvoice = async (id) => {
   y = Math.max(y, 95) + 10;
 
   // Add job details section if available
-  if (meta.job_name || meta.job_description || meta.job_address) {
+  if (meta.job_name || meta.job_address) {
     doc.setFillColor(249, 249, 249);
     doc.rect(20, y, 170, 0, 'F');
 
@@ -1712,11 +1692,6 @@ window.downloadInvoice = async (id) => {
     if (meta.job_name) {
       doc.text(`Název / Name: ${meta.job_name}`, 22, y);
       y += 5;
-    }
-    if (meta.job_description) {
-      const descLines = doc.splitTextToSize(`Popis / Description: ${meta.job_description}`, 166);
-      doc.text(descLines, 22, y);
-      y += descLines.length * 4;
     }
     if (meta.job_address) {
       const addrLines = doc.splitTextToSize(`Adresa / Address: ${meta.job_address}`, 166);
