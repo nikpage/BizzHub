@@ -962,26 +962,7 @@ async function createInvoiceFromJob(jobId) {
   if (dateRange) descParts.push(dateRange);
   const fullDescription = descParts.join('\n');
 
-  // Generate invoice ID in format YYMMDD-II
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const datePrefix = `${yy}${mm}${dd}`;
-
-  database.clearCache('invoices');
-  state.invoices = await database.getInvoices();
-  const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
-  let nextIncrement = 1;
-  if (todayInvoices.length > 0) {
-    const increments = todayInvoices.map(inv => {
-      const parts = inv.id.split('-');
-      return parts.length === 2 ? parseInt(parts[1]) : 0;
-    });
-    nextIncrement = Math.max(...increments) + 1;
-  }
-  const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
-
+  const invoiceId = crypto.randomUUID();
   const invoiceData = {
     id: invoiceId,
     client_id: job.client_id,
@@ -1070,25 +1051,7 @@ async function generateInvoice() {
   const rate = parseFloat(client.rate || 0);
   const total = totalHours * rate;
 
-  // generate invoice id in same format as createInvoiceFromJob
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const datePrefix = `${yy}${mm}${dd}`;
-
-  state.invoices = await database.getInvoices();
-  const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
-  let nextIncrement = 1;
-  if (todayInvoices.length > 0) {
-    const increments = todayInvoices.map(inv => {
-      const parts = inv.id.split('-');
-      return parts.length === 2 ? parseInt(parts[1]) : 0;
-    });
-    nextIncrement = Math.max(...increments) + 1;
-  }
-  const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
-
+  const invoiceId = crypto.randomUUID();
   const invoice = {
     id: invoiceId,
     client_id: clientId,
@@ -1471,6 +1434,7 @@ window.deleteInvoice = async (id) => {
 };
 
 window.restoreItem = async (table, id) => {
+  await database.restore(table, id);
   await loadData();
   showView('trash');
   showToast(t('restoreSuccess'));
