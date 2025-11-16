@@ -1148,20 +1148,42 @@ async function createInvoiceFromJob(jobId) {
   const hours = parseFloat(job.hours) || 0;
   const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
   const currency = job.currency || client.currency || 'CZK';
-  const total = hours * rate;
+  const jobTotal = hours * rate;
 
-  let dateRange = '';
-  if (job.start_date && job.end_date) {
-    dateRange = `${formatDate(job.start_date)} - ${formatDate(job.end_date)}`;
-  } else if (job.start_date) {
-    dateRange = formatDate(job.start_date);
-  }
+  // Calculate expenses total
+  const expenses = job.expenses || [];
+  const expensesTotal = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
 
-  const descParts = [job.name];
-  if (job.description) descParts.push(job.description);
-  if (job.address) descParts.push(job.address);
-  if (dateRange) descParts.push(dateRange);
-  const fullDescription = descParts.join('\n');
+  // Calculate deposits total
+  const deposits = job.deposits || [];
+  const depositsTotal = deposits.reduce((sum, dep) => sum + (parseFloat(dep.amount) || 0), 0);
+
+  // Calculate final amounts
+  const invoiceAmount = jobTotal + expensesTotal;
+  const dueNow = invoiceAmount - depositsTotal;
+
+  // Build items array with job work, expenses, and deposits
+  const items = [];
+
+  // Main job line item
+  items.push({
+    description: job.name || 'Job',
+    hours: hours,
+    rate: rate,
+    amount: jobTotal
+  });
+
+  // Add expenses as line items
+  expenses.forEach(exp => {
+    if (exp.label || exp.amount) {
+      items.push({
+        description: exp.label || 'Expense',
+        hours: null,
+        rate: null,
+        amount: parseFloat(exp.amount) || 0
+      });
+    }
+  });
 
   // Generate invoice number in YYMMDD-XX format
   const now = new Date();
@@ -1188,14 +1210,25 @@ async function createInvoiceFromJob(jobId) {
     id: invoiceId,
     invoice_number: invoiceNumber,
     client_id: job.client_id,
-    items: JSON.stringify([{
-      description: fullDescription,
-      hours: hours,
-      rate: rate
-    }]),
-    total: total,
+    job_id: job.id,
+    items: JSON.stringify(items),
+    subtotal: jobTotal,
+    total: dueNow,
+    currency: currency,
     status: 'unpaid',
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    meta: JSON.stringify({
+      job_name: job.name,
+      job_description: job.description,
+      job_address: job.address,
+      job_start_date: job.start_date,
+      job_end_date: job.end_date,
+      expenses: expenses,
+      deposits: deposits,
+      expenses_total: expensesTotal,
+      deposits_total: depositsTotal,
+      invoice_amount: invoiceAmount
+    })
   };
 
   try {
@@ -1417,6 +1450,7 @@ window.viewInvoice = async (id) => {
 
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
+  const meta = typeof inv.meta === 'string' ? JSON.parse(inv.meta || '{}') : (inv.meta || {});
 
   const win = window.open('', '_blank');
   win.document.write(`
@@ -1424,7 +1458,7 @@ window.viewInvoice = async (id) => {
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>FAKTURA / INVOICE #${inv.id}</title>
+      <title>FAKTURA / INVOICE #${inv.invoice_number || inv.id}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; padding: 50px; max-width: 900px; margin: 0 auto; color: #000; background: #fff; }
@@ -1437,14 +1471,20 @@ window.viewInvoice = async (id) => {
         .party { width: 48%; }
         .party h3 { font-size: 15px; font-weight: bold; margin-bottom: 8px; }
         .party p { margin: 0; font-size: 14px; line-height: 1.5; }
+        .job-details { background: #f9f9f9; padding: 20px; margin: 25px 0; border-radius: 8px; }
+        .job-details h3 { font-size: 15px; font-weight: bold; margin-bottom: 12px; }
+        .job-detail-row { margin: 6px 0; font-size: 14px; }
+        .job-detail-row strong { display: inline-block; min-width: 120px; }
         table { width: 100%; border-collapse: collapse; margin: 30px 0; }
         th { background: #f8f8f8; padding: 12px; text-align: left; font-weight: bold; font-size: 13px; border-bottom: 2px solid #333; }
         th.right { text-align: right; }
         td { padding: 12px; font-size: 14px; border-bottom: 1px solid #e0e0e0; }
         td:first-child { max-width: 400px; word-wrap: break-word; white-space: normal; }
         td.right { text-align: right; }
-        .total-section { text-align: right; margin-top: 30px; }
-        .total-line { font-size: 20px; font-weight: bold; padding: 15px 0; border-top: 2px solid #000; }
+        .totals-section { background: #f0f7ff; padding: 20px; margin: 25px 0; border-radius: 8px; }
+        .total-line { display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; }
+        .total-line.main { font-size: 18px; font-weight: bold; border-top: 2px solid #1976d2; padding-top: 12px; margin-top: 10px; }
+        .total-line.final { font-size: 20px; font-weight: bold; color: #1976d2; border-top: 2px solid #1976d2; padding-top: 12px; margin-top: 10px; }
         .footer-info { margin-top: 50px; font-size: 13px; line-height: 1.8; }
         .footer-info p { margin: 3px 0; }
         @media print { body { padding: 30px; } .no-print { display: none; } }
@@ -1456,7 +1496,7 @@ window.viewInvoice = async (id) => {
       <div class="header">
         <h1 class="invoice-title">FAKTURA / INVOICE</h1>
         <div class="invoice-meta">
-          <div><strong>Číslo faktury / Invoice #:</strong> ${inv.id}</div>
+          <div><strong>Číslo faktury / Invoice #:</strong> ${inv.invoice_number || inv.id}</div>
           <div><strong>Datum vystavení / Issue date:</strong> ${formatDate(inv.created_at)}</div>
           <div><strong>Datum splatnosti / Due date:</strong> ${formatDate(inv.due_date)}</div>
           <div><strong>Forma úhrady / Payment Method:</strong> Bankovní převod / Bank transfer</div>
@@ -1505,6 +1545,22 @@ window.viewInvoice = async (id) => {
         </div>
       </div>
 
+      ${meta.job_name || meta.job_description || meta.job_address ? `
+        <div class="job-details">
+          <h3>Detaily zakázky / Job Details</h3>
+          ${meta.job_name ? `<div class="job-detail-row"><strong>Název / Name:</strong> ${meta.job_name}</div>` : ''}
+          ${meta.job_description ? `<div class="job-detail-row"><strong>Popis / Description:</strong> ${meta.job_description}</div>` : ''}
+          ${meta.job_address ? `<div class="job-detail-row"><strong>Adresa / Address:</strong> ${meta.job_address}</div>` : ''}
+          ${meta.job_start_date || meta.job_end_date ? `
+            <div class="job-detail-row">
+              <strong>Období / Period:</strong>
+              ${meta.job_start_date ? formatDate(meta.job_start_date) : ''}
+              ${meta.job_end_date ? '- ' + formatDate(meta.job_end_date) : ''}
+            </div>
+          ` : ''}
+        </div>
+      ` : ''}
+
       <table>
         <thead>
           <tr>
@@ -1518,16 +1574,41 @@ window.viewInvoice = async (id) => {
           ${items.map(item => `
             <tr>
               <td>${item.description}</td>
-              <td class="right">${(item.hours || 0).toFixed(2)}</td>
-              <td class="right">${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}</td>
-              <td class="right">${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
+              <td class="right">${item.hours !== null && item.hours !== undefined ? item.hours.toFixed(2) : '-'}</td>
+              <td class="right">${item.rate !== null && item.rate !== undefined ? formatCurrency(item.rate) + ' ' + (inv.currency || client?.currency || 'CZK') : '-'}</td>
+              <td class="right">${formatCurrency(item.amount || (item.hours * item.rate) || 0)} ${inv.currency || client?.currency || 'CZK'}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
 
-      <div class="total-section">
-        <div class="total-line">CELKEM K ÚHRADĚ / TOTAL DUE: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
+      <div class="totals-section">
+        ${meta.expenses_total > 0 || meta.deposits_total > 0 ? `
+          <div class="total-line">
+            <span>Celkem práce / Job Total:</span>
+            <span>${formatCurrency(inv.subtotal || 0)} ${inv.currency || client?.currency || 'CZK'}</span>
+          </div>
+          ${meta.expenses_total > 0 ? `
+            <div class="total-line">
+              <span>Výdaje / Expenses:</span>
+              <span>${formatCurrency(meta.expenses_total)} ${inv.currency || client?.currency || 'CZK'}</span>
+            </div>
+          ` : ''}
+          <div class="total-line main">
+            <span>Celková částka / Invoice Amount:</span>
+            <span>${formatCurrency(meta.invoice_amount || inv.total)} ${inv.currency || client?.currency || 'CZK'}</span>
+          </div>
+          ${meta.deposits_total > 0 ? `
+            <div class="total-line">
+              <span>Zálohy / Deposits:</span>
+              <span>-${formatCurrency(meta.deposits_total)} ${inv.currency || client?.currency || 'CZK'}</span>
+            </div>
+          ` : ''}
+        ` : ''}
+        <div class="total-line final">
+          <span>CELKEM K ÚHRADĚ / TOTAL DUE:</span>
+          <span>${formatCurrency(inv.total || 0)} ${inv.currency || client?.currency || 'CZK'}</span>
+        </div>
       </div>
 
       <div class="footer-info">
@@ -1552,6 +1633,7 @@ window.downloadInvoice = async (id) => {
 
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
+  const meta = typeof inv.meta === 'string' ? JSON.parse(inv.meta || '{}') : (inv.meta || {});
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true, orientation: 'p', unit: 'mm', format: 'a4' });
 
@@ -1559,13 +1641,13 @@ window.downloadInvoice = async (id) => {
   doc.setFont('Helvetica', 'normal');
 
   // Remove auto header/date metadata entirely
-  doc.setProperties({ title: `invoice-${inv.id}` });
+  doc.setProperties({ title: `invoice-${inv.invoice_number || inv.id}` });
 
   doc.setFontSize(24);
   doc.text('FAKTURA / INVOICE', 20, 20);
 
   doc.setFontSize(11);
-  doc.text(`Číslo faktury / Invoice #: ${inv.id}`, 20, 35);
+  doc.text(`Číslo faktury / Invoice #: ${inv.invoice_number || inv.id}`, 20, 35);
   doc.text(`Datum vystavení / Issue date: ${formatDate(inv.created_at)}`, 20, 42);
   doc.text(`Datum splatnosti / Due date: ${formatDate(inv.due_date)}`, 20, 49);
   doc.text('Forma úhrady / Payment: Bankovní převod / Bank transfer', 20, 56);
@@ -1615,6 +1697,41 @@ window.downloadInvoice = async (id) => {
 
   y = Math.max(y, 95) + 10;
 
+  // Add job details section if available
+  if (meta.job_name || meta.job_description || meta.job_address) {
+    doc.setFillColor(249, 249, 249);
+    doc.rect(20, y, 170, 0, 'F');
+
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text('Detaily zakázky / Job Details', 20, y + 5);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    y += 10;
+
+    if (meta.job_name) {
+      doc.text(`Název / Name: ${meta.job_name}`, 22, y);
+      y += 5;
+    }
+    if (meta.job_description) {
+      const descLines = doc.splitTextToSize(`Popis / Description: ${meta.job_description}`, 166);
+      doc.text(descLines, 22, y);
+      y += descLines.length * 4;
+    }
+    if (meta.job_address) {
+      const addrLines = doc.splitTextToSize(`Adresa / Address: ${meta.job_address}`, 166);
+      doc.text(addrLines, 22, y);
+      y += addrLines.length * 4;
+    }
+    if (meta.job_start_date || meta.job_end_date) {
+      const dateText = `Období / Period: ${meta.job_start_date ? formatDate(meta.job_start_date) : ''} ${meta.job_end_date ? '- ' + formatDate(meta.job_end_date) : ''}`;
+      doc.text(dateText, 22, y);
+      y += 5;
+    }
+
+    y += 5;
+  }
+
   doc.setFontSize(10);
   doc.setFont(undefined, 'bold');
   doc.text('Položka / Description', 20, y);
@@ -1629,15 +1746,15 @@ window.downloadInvoice = async (id) => {
 
   doc.setFont(undefined, 'normal');
   items.forEach(item => {
-    if (y > 270) { doc.addPage(); y = 20; }
+    if (y > 260) { doc.addPage(); y = 20; }
 
     const descWidth = 90;
     const descLines = doc.splitTextToSize(item.description, descWidth);
 
     doc.text(descLines, 20, y);
-    doc.text((item.hours || 0).toFixed(2), 120, y, { align: 'right' });
-    doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
-    doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+    doc.text(item.hours !== null && item.hours !== undefined ? item.hours.toFixed(2) : '-', 120, y, { align: 'right' });
+    doc.text(item.rate !== null && item.rate !== undefined ? `${formatCurrency(item.rate)} ${inv.currency || client?.currency || 'CZK'}` : '-', 150, y, { align: 'right' });
+    doc.text(`${formatCurrency(item.amount || (item.hours * item.rate) || 0)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
     y += Math.max(7, descLines.length * 5);
   });
@@ -1647,10 +1764,40 @@ window.downloadInvoice = async (id) => {
   doc.line(120, y, 190, y);
   y += 8;
 
+  // Add totals breakdown if expenses or deposits exist
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'normal');
+
+  if (meta.expenses_total > 0 || meta.deposits_total > 0) {
+    doc.text('Celkem práce / Job Total:', 120, y);
+    doc.text(`${formatCurrency(inv.subtotal || 0)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+    y += 6;
+
+    if (meta.expenses_total > 0) {
+      doc.text('Výdaje / Expenses:', 120, y);
+      doc.text(`${formatCurrency(meta.expenses_total)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+      y += 6;
+    }
+
+    doc.setFont(undefined, 'bold');
+    doc.text('Celková částka / Invoice Amount:', 120, y);
+    doc.text(`${formatCurrency(meta.invoice_amount || inv.total)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+    y += 6;
+
+    if (meta.deposits_total > 0) {
+      doc.setFont(undefined, 'normal');
+      doc.text('Zálohy / Deposits:', 120, y);
+      doc.text(`-${formatCurrency(meta.deposits_total)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+      y += 8;
+    } else {
+      y += 2;
+    }
+  }
+
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
   doc.text('CELKEM K ÚHRADĚ / TOTAL DUE:', 20, y);
-  doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+  doc.text(`${formatCurrency(inv.total || 0)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
 
   y += 15;
   doc.setFontSize(11);
@@ -1663,7 +1810,7 @@ window.downloadInvoice = async (id) => {
   y += 6;
   doc.text('Nejsem plátce DPH. / Not a VAT payer.', 20, y);
 
-  doc.save(`invoice-${inv.id}.pdf`);
+  doc.save(`invoice-${inv.invoice_number || inv.id}.pdf`);
 };
 
 

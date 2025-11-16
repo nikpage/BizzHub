@@ -111,6 +111,8 @@ export const LANG = {
     tax: 'Tax',
     total: 'Total',
     dueDate: 'Due Date',
+    jobDetails: 'Job Details',
+    expensesAndDeposits: 'Expenses & Deposits',
 
     // Common
     save: 'Save',
@@ -247,6 +249,8 @@ export const LANG = {
     tax: 'DPH',
     total: 'Celkem',
     dueDate: 'Datum splatnosti',
+    jobDetails: 'Detaily zakázky',
+    expensesAndDeposits: 'Výdaje a zálohy',
 
     // Common
     save: 'Uložit',
