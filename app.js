@@ -1470,8 +1470,7 @@ window.deleteInvoice = async (id) => {
   }
 };
 
-window.restoreItem = async (table, id) => {Question: Is the first invoice actually in state.invoices after the reload? Or is the reload returning empty/stale data?
-  await database.restore(table, id);
+window.restoreItem = async (table, id) => {
   await loadData();
   showView('trash');
   showToast(t('restoreSuccess'));
