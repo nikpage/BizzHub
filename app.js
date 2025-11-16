@@ -969,6 +969,7 @@ async function createInvoiceFromJob(jobId) {
   const dd = String(now.getDate()).padStart(2, '0');
   const datePrefix = `${yy}${mm}${dd}`;
 
+state.invoices = await database.getInvoices();
   const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
   let nextIncrement = 1;
   if (todayInvoices.length > 0) {
@@ -1075,6 +1076,7 @@ async function generateInvoice() {
   const dd = String(now.getDate()).padStart(2, '0');
   const datePrefix = `${yy}${mm}${dd}`;
 
+state.invoices = await database.getInvoices();
   const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
   let nextIncrement = 1;
   if (todayInvoices.length > 0) {
