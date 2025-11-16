@@ -969,9 +969,8 @@ async function createInvoiceFromJob(jobId) {
   const dd = String(now.getDate()).padStart(2, '0');
   const datePrefix = `${yy}${mm}${dd}`;
 
-  // Fetch today's invoices from DATABASE (bypassing cache)
-  const cacheKey = database.getCacheKey('invoices:all');
-  database.cache.delete(cacheKey);
+  // Clear invoice cache to get fresh data from database
+  database.clearCache('invoices');
   const todayInvoices = await database.getInvoices();
   const todayInvoicesFiltered = todayInvoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
 
