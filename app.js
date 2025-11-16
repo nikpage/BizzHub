@@ -970,20 +970,18 @@ async function createInvoiceFromJob(jobId) {
   const datePrefix = `${yy}${mm}${dd}`;
 
   // Fetch today's invoices from DATABASE to get accurate count
-  const { data: todayInvoices, error } = await supabase
-    .from('invoices')
-    .select('id')
-    .like('id', `${datePrefix}%`)
-    .eq('user_id', state.user.id);
+  const todayInvoices = await database.getInvoices();
+  const todayInvoicesFiltered = todayInvoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
 
   let nextIncrement = 1;
-  if (todayInvoices && todayInvoices.length > 0) {
-    const increments = todayInvoices.map(inv => {
+  if (todayInvoicesFiltered.length > 0) {
+    const increments = todayInvoicesFiltered.map(inv => {
       const parts = inv.id.split('-');
       return parts.length === 2 ? parseInt(parts[1]) : 0;
     });
     nextIncrement = Math.max(...increments) + 1;
   }
+  
   const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
 
   const invoiceData = {
