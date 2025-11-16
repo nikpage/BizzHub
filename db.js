@@ -185,6 +185,24 @@ class Database {
     return data.business;
   }
 
+  async loadDashboard() {
+    const [clients, jobs, timesheets, invoices, business] = await Promise.all([
+      this.getAllClients(),
+      this.getAllJobs(),
+      this.getAllTimesheets(),
+      this.getAllInvoices(),
+      this.getProfile()
+    ]);
+
+    return {
+      clients: clients || [],
+      jobs: jobs || [],
+      timesheets: timesheets || [],
+      invoices: invoices || [],
+      business: business || null
+    };
+  }
+
   async upsertProfile(data) {
     // If the data already has an ID, use PATCH, otherwise use POST.
     if (data.id) {
