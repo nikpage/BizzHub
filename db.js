@@ -1,5 +1,4 @@
 // Supabase Database Adapter for BizzHub - COMPLETE and SECURE
-import { NetlifyIdentity } from 'netlify-identity-widget';
 
 class Database {
   constructor() {
@@ -48,7 +47,7 @@ class Database {
   async request(endpoint, options = {}) {
     console.info('[DB] REQUEST ->', { endpoint, options });
 
-    const token = NetlifyIdentity.currentUser()?.token?.access_token;
+    const token = window.netlifyIdentity.currentUser()?.token?.access_token;
     if (!token) throw new Error('Authentication token not available. User must log in.');
 
     const cacheKey = this.getCacheKey(endpoint);
@@ -143,7 +142,7 @@ class Database {
   }
 
   async requestBatch(requests) {
-    const token = NetlifyIdentity.currentUser()?.token?.access_token;
+    const token = window.netlifyIdentity.currentUser()?.token?.access_token;
     if (!token) throw new Error('Authentication token not available.');
 
     const cacheKey = this.getCacheKey('batch:' + JSON.stringify(requests));
