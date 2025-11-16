@@ -969,6 +969,7 @@ async function createInvoiceFromJob(jobId) {
   const dd = String(now.getDate()).padStart(2, '0');
   const datePrefix = `${yy}${mm}${dd}`;
 
+  database.clearCache('invoices');
   state.invoices = await database.getInvoices();
   const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
   let nextIncrement = 1;
@@ -1469,7 +1470,7 @@ window.deleteInvoice = async (id) => {
   }
 };
 
-window.restoreItem = async (table, id) => {
+window.restoreItem = async (table, id) => {Question: Is the first invoice actually in state.invoices after the reload? Or is the reload returning empty/stale data?
   await database.restore(table, id);
   await loadData();
   showView('trash');
