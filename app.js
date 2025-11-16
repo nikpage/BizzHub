@@ -683,7 +683,11 @@ function showClientForm(clientId = null) {
 
     if (!data.id) delete data.id;
     if (data.rate === '') delete data.rate;
-    if (data.due_date_days === '') data.due_date_days = 30;
+
+    // Only include due_date_days if it has a value
+    if (data.due_date_days === '' || !data.due_date_days) {
+      delete data.due_date_days;
+    }
 
     console.log('Saving client data:', JSON.stringify(data, null, 2));
     try {
