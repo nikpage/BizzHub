@@ -29,7 +29,6 @@ async function init() {
   // Wait for Netlify Identity to be ready
   return new Promise((resolve) => {
     if (window.netlifyIdentity) {
-      window.netlifyIdentity.init();
       window.netlifyIdentity.on('init', async (user) => {
         if (!user) {
           // Not logged in, redirect to landing page
