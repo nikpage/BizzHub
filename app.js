@@ -1405,6 +1405,16 @@ async function restoreData(file) {
 }
 
 
+window.editClient = (id) => showClientForm(id);
+window.deleteClient = async (id) => {
+  if (confirm(t('confirmDelete'))) {
+    await database.deleteClient(id);
+    await loadData();
+    showView('clients');
+    showToast(t('deleteSuccess'));
+  }
+};
+
 window.editJob = (id) => showJobForm(id);
 window.createInvoiceFromJob = createInvoiceFromJob;
 window.deleteJob = async (id) => {
