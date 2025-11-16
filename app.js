@@ -785,6 +785,70 @@ function showJobForm(jobId = null) {
           </select>
         </div>
 
+        <!-- Expenses Section -->
+        <div class="form-group full-width" style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 20px;">
+          <h3 style="margin-top: 0; color: #666;">${t('expenses')}</h3>
+          <div id="expensesContainer">
+            ${(job.expenses || []).map((exp, i) => `
+              <div class="expense-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                <input type="text" placeholder="${t('expenseLabel')}" value="${exp.label || ''}"
+                  style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+                  data-expense-label="${i}">
+                <input type="number" placeholder="${t('expenseAmount')}" value="${exp.amount || ''}" step="0.01"
+                  style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+                  data-expense-amount="${i}">
+                <button type="button" class="remove-expense" data-index="${i}"
+                  style="background: #dc3545; color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 18px;">−</button>
+              </div>
+            `).join('')}
+          </div>
+          <button type="button" id="addExpense"
+            style="background: #28a745; color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 20px; margin-top: 5px;">+</button>
+        </div>
+
+        <!-- Deposits Section -->
+        <div class="form-group full-width" style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 15px;">
+          <h3 style="margin-top: 0; color: #666;">${t('deposits')}</h3>
+          <div id="depositsContainer">
+            ${(job.deposits || []).map((dep, i) => `
+              <div class="deposit-row" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+                <input type="number" placeholder="${t('depositAmount')}" value="${dep.amount || ''}" step="0.01"
+                  style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+                  data-deposit-amount="${i}">
+                <button type="button" class="remove-deposit" data-index="${i}"
+                  style="background: #dc3545; color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 18px;">−</button>
+              </div>
+            `).join('')}
+          </div>
+          <button type="button" id="addDeposit"
+            style="background: #28a745; color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 20px; margin-top: 5px;">+</button>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="form-group full-width" style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-top: 15px;">
+          <h3 style="margin-top: 0; color: #1976d2;">${t('invoiceAmount')}</h3>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px;">
+            <span>${t('jobTotal')}:</span>
+            <span id="summaryJobTotal">0.00</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px;">
+            <span>${t('expensesTotal')}:</span>
+            <span id="summaryExpensesTotal">0.00</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 15px 0 10px 0; font-weight: bold; font-size: 18px; border-top: 2px solid #1976d2; margin-top: 10px;">
+            <span>${t('invoiceAmount')}:</span>
+            <span id="summaryInvoiceAmount">0.00</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; margin-top: 15px;">
+            <span>${t('depositsTotal')}:</span>
+            <span id="summaryDepositsTotal">0.00</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 15px 0 0 0; font-weight: bold; font-size: 18px; color: #1976d2; border-top: 2px solid #1976d2;">
+            <span>${t('dueNow')}:</span>
+            <span id="summaryDueNow">0.00</span>
+          </div>
+        </div>
+
       </div>
 
       <input type="hidden" name="id" value="${job.id || ''}">
@@ -793,6 +857,27 @@ function showJobForm(jobId = null) {
       const form = document.getElementById('jobForm');
       const formData = new FormData(form);
       const data = Object.fromEntries(formData);
+
+      // Collect expenses
+      const expenses = [];
+      document.querySelectorAll('[data-expense-label]').forEach((input, i) => {
+        const label = input.value;
+        const amount = document.querySelector(`[data-expense-amount="${i}"]`)?.value;
+        if (label || amount) {
+          expenses.push({ label: label || '', amount: parseFloat(amount) || 0 });
+        }
+      });
+      data.expenses = expenses;
+
+      // Collect deposits
+      const deposits = [];
+      document.querySelectorAll('[data-deposit-amount]').forEach((input) => {
+        const amount = input.value;
+        if (amount) {
+          deposits.push({ amount: parseFloat(amount) || 0 });
+        }
+      });
+      data.deposits = deposits;
 
       if (data.client_id) {
         const client = state.clients.find(c => c.id === data.client_id);
@@ -822,6 +907,7 @@ function showJobForm(jobId = null) {
     const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
     const rateInput = document.querySelector('#jobForm input[name="rate"]');
     const currencySelect = document.querySelector('#jobForm select[name="currency"]');
+    const hoursInput = document.querySelector('#jobForm input[name="hours"]');
 
     if (clientSelect && rateInput && currencySelect) {
       const applyClientDefaults = () => {
@@ -833,6 +919,7 @@ function showJobForm(jobId = null) {
         }
         rateInput.value = client.rate || '';
         currencySelect.value = client.currency || 'CZK';
+        updateSummary();
       };
 
       clientSelect.addEventListener('change', applyClientDefaults);
@@ -841,6 +928,120 @@ function showJobForm(jobId = null) {
         applyClientDefaults();
       }
     }
+
+    // Add expense row
+    document.getElementById('addExpense')?.addEventListener('click', () => {
+      const container = document.getElementById('expensesContainer');
+      const index = container.children.length;
+      const row = document.createElement('div');
+      row.className = 'expense-row';
+      row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+      row.innerHTML = `
+        <input type="text" placeholder="${t('expenseLabel')}"
+          style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+          data-expense-label="${index}">
+        <input type="number" placeholder="${t('expenseAmount')}" step="0.01"
+          style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+          data-expense-amount="${index}">
+        <button type="button" class="remove-expense" data-index="${index}"
+          style="background: #dc3545; color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 18px;">−</button>
+      `;
+      container.appendChild(row);
+      row.querySelector('[data-expense-amount]').addEventListener('input', updateSummary);
+      row.querySelector('.remove-expense').addEventListener('click', (e) => {
+        e.target.closest('.expense-row').remove();
+        updateSummary();
+      });
+    });
+
+    // Remove expense handlers
+    document.querySelectorAll('.remove-expense').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.target.closest('.expense-row').remove();
+        updateSummary();
+      });
+    });
+
+    // Add deposit row
+    document.getElementById('addDeposit')?.addEventListener('click', () => {
+      const container = document.getElementById('depositsContainer');
+      const index = container.children.length;
+      const row = document.createElement('div');
+      row.className = 'deposit-row';
+      row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px; align-items: center;';
+      row.innerHTML = `
+        <input type="number" placeholder="${t('depositAmount')}" step="0.01"
+          style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+          data-deposit-amount="${index}">
+        <button type="button" class="remove-deposit" data-index="${index}"
+          style="background: #dc3545; color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 18px;">−</button>
+      `;
+      container.appendChild(row);
+      row.querySelector('[data-deposit-amount]').addEventListener('input', updateSummary);
+      row.querySelector('.remove-deposit').addEventListener('click', (e) => {
+        e.target.closest('.deposit-row').remove();
+        updateSummary();
+      });
+    });
+
+    // Remove deposit handlers
+    document.querySelectorAll('.remove-deposit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.target.closest('.deposit-row').remove();
+        updateSummary();
+      });
+    });
+
+    // Calculate and update summary
+    function updateSummary() {
+      const hours = parseFloat(hoursInput?.value || 0);
+      const rate = parseFloat(rateInput?.value || 0);
+      const currency = currencySelect?.value || 'CZK';
+
+      // Job total
+      const jobTotal = hours * rate;
+
+      // Expenses total
+      let expensesTotal = 0;
+      document.querySelectorAll('[data-expense-amount]').forEach(input => {
+        expensesTotal += parseFloat(input.value || 0);
+      });
+
+      // Invoice amount
+      const invoiceAmount = jobTotal + expensesTotal;
+
+      // Deposits total
+      let depositsTotal = 0;
+      document.querySelectorAll('[data-deposit-amount]').forEach(input => {
+        depositsTotal += parseFloat(input.value || 0);
+      });
+
+      // Due now
+      const dueNow = invoiceAmount - depositsTotal;
+
+      // Update display
+      document.getElementById('summaryJobTotal').textContent = `${formatCurrency(jobTotal)} ${currency}`;
+      document.getElementById('summaryExpensesTotal').textContent = `${formatCurrency(expensesTotal)} ${currency}`;
+      document.getElementById('summaryInvoiceAmount').textContent = `${formatCurrency(invoiceAmount)} ${currency}`;
+      document.getElementById('summaryDepositsTotal').textContent = `${formatCurrency(depositsTotal)} ${currency}`;
+      document.getElementById('summaryDueNow').textContent = `${formatCurrency(dueNow)} ${currency}`;
+    }
+
+    // Add listeners for live calculation
+    hoursInput?.addEventListener('input', updateSummary);
+    rateInput?.addEventListener('input', updateSummary);
+    currencySelect?.addEventListener('change', updateSummary);
+
+    document.querySelectorAll('[data-expense-amount]').forEach(input => {
+      input.addEventListener('input', updateSummary);
+    });
+
+    document.querySelectorAll('[data-deposit-amount]').forEach(input => {
+      input.addEventListener('input', updateSummary);
+    });
+
+    // Initial calculation
+    updateSummary();
 
 
   }

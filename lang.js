@@ -66,6 +66,16 @@ export const LANG = {
     startDate: 'Start Date',
     endDate: 'End Date',
     hours: 'Hours',
+    expenses: 'Expenses',
+    expenseLabel: 'Label',
+    expenseAmount: 'Amount',
+    deposits: 'Deposits',
+    depositAmount: 'Amount',
+    jobTotal: 'Job Total',
+    expensesTotal: 'Expenses Total',
+    invoiceAmount: 'Invoice Amount',
+    depositsTotal: 'Deposits Total',
+    dueNow: 'Due Now',
 
     // Work Logs
     addLog: 'Add Log',
@@ -192,6 +202,16 @@ export const LANG = {
     startDate: 'Datum zahájení',
     endDate: 'Datum ukončení',
     hours: 'Hodiny',
+    expenses: 'Výdaje',
+    expenseLabel: 'Popis',
+    expenseAmount: 'Částka',
+    deposits: 'Zálohy',
+    depositAmount: 'Částka',
+    jobTotal: 'Celkem práce',
+    expensesTotal: 'Celkem výdaje',
+    invoiceAmount: 'Částka faktury',
+    depositsTotal: 'Celkem zálohy',
+    dueNow: 'Zbývá zaplatit',
 
     // Work Logs
     addLog: 'Přidat záznam',
