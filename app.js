@@ -29,6 +29,7 @@ async function init() {
   // Wait for Netlify Identity to be ready
   return new Promise((resolve) => {
     if (window.netlifyIdentity) {
+      window.netlifyIdentity.init();
       window.netlifyIdentity.on('init', async (user) => {
         if (!user) {
           // Not logged in, redirect to landing page
@@ -48,7 +49,7 @@ async function init() {
         document.body.dataset.theme = savedTheme;
 
         setupEventListeners();
-        loadData();
+        await loadData();
 
         document.getElementById('userEmail').textContent = user.email;
         showView('dashboard');
@@ -156,6 +157,7 @@ function showView(viewName) {
       renderDashboard(mainView);
       break;
     case 'clients':
+
       renderClients(mainView);
       break;
     case 'jobs':
@@ -586,7 +588,6 @@ function showModal(title, content, onSave) {
 
   if (onSave) {
     document.getElementById('modalSave').addEventListener('click', async () => {
-      // The onSave function will handle form data collection and submission
       await onSave();
       window.closeModal();
     });
@@ -602,6 +603,24 @@ function showClientForm(clientId = null) {
   const client = clientId ? state.clients.find(c => c.id === clientId) : {};
 
   showModal(clientId ? t('editClient') : t('addClient'), `
+    setTimeout(() => {
+      const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
+      const rateInput = document.querySelector('#jobForm input[name="rate"]');
+      const currencySelect = document.querySelector('#jobForm select[name="currency"]');
+
+      if (clientSelect && rateInput && currencySelect) {
+        clientSelect.addEventListener('change', () => {
+          const client = state.clients.find(c => c.id === clientSelect.value);
+          if (client) {
+            rateInput.value = client.rate || '';
+            currencySelect.value = client.currency || 'CZK';
+          }
+        });
+      }
+    }, 0);
+
+
+
     <form id="clientForm">
       <div class="form-grid">
         <div class="form-group">
@@ -650,7 +669,7 @@ function showClientForm(clientId = null) {
 
         <div class="form-group full-width">
           <h3 class="mb-2">${t('idNumbers')}</h3>
-          ${[1, 2, 3, 4].map(i => `
+          ${[1,2,3,4].map(i => `
             <div class="form-grid">
               <div class="form-group">
                 <label>${t('idLabel')} ${i} (e.g. VAT, Tax ID)</label>
@@ -668,8 +687,6 @@ function showClientForm(clientId = null) {
       <input type="hidden" name="id" value="${client.id || ''}">
     </form>
   `, async () => {
-    const form = document.getElementById('clientForm');
-    const formData = new FormData(form);
     const data = Object.fromEntries(formData);
 
     // inherit client rate/currency if blank
@@ -700,8 +717,6 @@ function showClientForm(clientId = null) {
     }
   });
 }
-
-// Job Forms
 function showJobForm(jobId = null) {
   const job = jobId ? state.jobs.find(j => j.id === jobId) : {};
 
@@ -720,24 +735,18 @@ function showJobForm(jobId = null) {
 
         <div class="form-group">
           <label>${t('jobName')} *</label>
-          <input type="text" name="name" value="${job.name || ''}" required autocomplete="off">
+          <input type="text" name="name" value="${job.name || ''}" required>
         </div>
 
-      </div>
-
-      <div class="form-grid">
-        <div class="form-group">
+        <div class="form-group full-width">
           <label>${t('jobDescription')}</label>
-          <textarea name="description" rows="3">${job.description || ''}</textarea>
+          <textarea name="description">${job.description || ''}</textarea>
         </div>
 
-        <div class="form-group">
+        <div class="form-group full-width">
           <label>${t('address')}</label>
-          <textarea name="address" rows="3">${job.address || ''}</textarea>
+          <textarea name="address">${job.address || ''}</textarea>
         </div>
-      </div>
-
-      <div class="form-grid">
 
         <div class="form-group">
           <label>${t('startDate')}</label>
@@ -759,6 +768,7 @@ function showJobForm(jobId = null) {
           <input type="number" name="rate" value="${job.rate || (job.client_id ? (state.clients.find(c => c.id === job.client_id)?.rate || '') : '')}" step="0.01">
         </div>
 
+
         <div class="form-group">
           <label>${t('currency')}</label>
           <select name="currency">
@@ -775,42 +785,6 @@ function showJobForm(jobId = null) {
           </select>
         </div>
 
-      </div>
-
-      <div class="form-section">
-        <h4>${t('expenses')}</h4>
-        <div id="expensesList"></div>
-        <button type="button" class="btn btn-secondary" onclick="addExpenseLine()">${t('addExpense')}</button>
-      </div>
-
-      <div class="form-section">
-        <h4>${t('deposits')}</h4>
-        <div id="depositsList"></div>
-        <button type="button" class="btn btn-secondary" onclick="addDepositLine()">${t('addDeposit')}</button>
-      </div>
-
-      <div class="totals-display" style="background: #e8f4fd; border: 2px solid #0066cc; padding: 15px; margin: 15px 0;">
-        <h4 style="color: #0066cc; margin-top: 0;">${t('calculatedTotals')}</h4>
-        <div class="total-row">
-          <span>${t('jobAmount')}:</span>
-          <span id="displayJobAmount">0.00</span>
-        </div>
-        <div class="total-row">
-          <span>${t('totalExpenses')}:</span>
-          <span id="displayTotalExpenses">0.00</span>
-        </div>
-        <div class="total-row" style="border-top: 1px solid #0066cc; padding-top: 5px; font-weight: bold;">
-          <span>${t('totalInvoice')}:</span>
-          <span id="displayTotalInvoice">0.00</span>
-        </div>
-        <div class="total-row">
-          <span>${t('totalDeposits')}:</span>
-          <span id="displayTotalDeposits" style="color: #d63384;">0.00</span>
-        </div>
-        <div class="total-row" style="border-top: 2px solid #0066cc; padding-top: 5px; font-weight: bold; font-size: 1.1em;">
-          <span>${t('amountDue')}:</span>
-          <span id="displayAmountDue" style="color: #198754;">0.00</span>
-        </div>
       </div>
 
       <input type="hidden" name="id" value="${job.id || ''}">
@@ -835,17 +809,8 @@ function showJobForm(jobId = null) {
       if (data.start_date === '') delete data.start_date;
       if (data.end_date === '') delete data.end_date;
 
-      // Collect expenses and deposits
-      const expenses = collectLineItems('expense');
-      const deposits = collectLineItems('deposit');
-
       try {
-        const savedJob = await database.saveJob(data);
-        const jobId = savedJob.id || data.id;
-
-        // Save expenses and deposits to job_lines table
-        await database.saveJobLines(jobId, expenses, deposits);
-
+        await database.saveJob(data);
         state.jobs = await database.getJobs();
         showView('jobs');
         showToast(t('saveSuccess'));
@@ -854,7 +819,6 @@ function showJobForm(jobId = null) {
         showToast('Save failed', 'error');
       }
     });
-
     const clientSelect = document.querySelector('#jobForm select[name="client_id"]');
     const rateInput = document.querySelector('#jobForm input[name="rate"]');
     const currencySelect = document.querySelector('#jobForm select[name="currency"]');
@@ -871,14 +835,17 @@ function showJobForm(jobId = null) {
         currencySelect.value = client.currency || 'CZK';
       };
 
-      // FIX: Complete the addEventListener call
       clientSelect.addEventListener('change', applyClientDefaults);
-      // Optional: Call immediately if editing an existing job to load defaults
-      if (jobId) applyClientDefaults();
-    }
-}
 
-// Timesheet Forms
+      if (clientSelect.value && (!rateInput.value || !currencySelect.value)) {
+        applyClientDefaults();
+      }
+    }
+
+
+  }
+
+
 function showTimesheetForm(timesheetId = null) {
   const ts = timesheetId ? state.timesheets.find(t => t.id === timesheetId) : {};
 
@@ -887,7 +854,7 @@ function showTimesheetForm(timesheetId = null) {
       <div class="form-grid">
         <div class="form-group">
           <label>${t('date')} *</label>
-          <input type="date" name="date" value="${ts.date || new Date().toISOString().substring(0, 10)}" required>
+          <input type="date" name="date" value="${ts.date || new Date().toISOString().split('T')[0]}" required>
         </div>
 
         <div class="form-group">
@@ -902,74 +869,174 @@ function showTimesheetForm(timesheetId = null) {
 
         <div class="form-group">
           <label>${t('hours')} *</label>
-          <input type="number" name="hours" value="${ts.hours || ''}" step="0.01" required>
+          <input type="number" name="hours" value="${ts.hours || ''}" step="0.25" required>
         </div>
 
         <div class="form-group full-width">
           <label>${t('notes')}</label>
           <textarea name="notes">${ts.notes || ''}</textarea>
         </div>
+
+        <div class="form-group">
+          <label>${t('rate')}</label>
+          <input type="number" name="rate" value="${ts.rate || ''}" step="0.01">
+        </div>
+
+        <div class="form-group">
+          <label>${t('currency')}</label>
+          <select name="currency">
+            ${(() => {
+              const client = ts.client_id ? state.clients.find(c => c.id === ts.client_id) : null;
+              const cur = ts.currency || client?.currency || 'CZK';
+              return `
+                <option value="USD" ${cur === 'USD' ? 'selected' : ''}>USD</option>
+                <option value="EUR" ${cur === 'EUR' ? 'selected' : ''}>EUR</option>
+                <option value="CZK" ${cur === 'CZK' ? 'selected' : ''}>CZK</option>
+                <option value="GBP" ${cur === 'GBP' ? 'selected' : ''}>GBP</option>
+              `;
+            })()}
+          </select>
+        </div>
+
+
+        <div class="form-group checkbox-group">
+          <input type="checkbox" name="billed" id="billedCheck" ${ts.billed ? 'checked' : ''}>
+          <label for="billedCheck">${t('billed')}</label>
+        </div>
       </div>
+
       <input type="hidden" name="id" value="${ts.id || ''}">
     </form>
   `, async () => {
     const form = document.getElementById('timesheetForm');
     const formData = new FormData(form);
-    const data = Object.fromEntries(formData);
+  const data = Object.fromEntries(formData);
 
-    if (!data.id) delete data.id;
-    if (data.client_id === '') delete data.client_id;
-    if (data.hours === '') delete data.hours;
+  data.billed = document.getElementById('billedCheck').checked;
 
-    try {
-      await database.saveTimesheet(data);
-      state.timesheets = await database.getTimesheets();
-      showView('worklogs');
-      showToast(t('saveSuccess'));
-    } catch (err) {
-      console.error('Save failed:', err);
-      showToast('Save failed', 'error');
+  // inherit client rate/currency if missing
+  if (data.client_id) {
+    const client = state.clients.find(c => c.id === data.client_id);
+    if (client) {
+      if (!data.rate || data.rate === '') data.rate = client.rate || 0;
+      if (!data.currency || data.currency === '') data.currency = client.currency || 'USD';
     }
+  }
+
+  if (!data.id) delete data.id;
+  if (data.hours === '') delete data.hours;
+
+
+    await database.saveTimesheet(data);
+    await loadData();
+    showView('worklogs');
+    showToast(t('saveSuccess'));
   });
 }
 
-// Profile Save
+async function createInvoiceFromJob(jobId) {
+  const job = state.jobs.find(j => j.id === jobId);
+  if (!job) return;
+
+  const client = state.clients.find(c => c.id === job.client_id);
+  if (!client) {
+    showToast('Client not found', 'error');
+    return;
+  }
+
+  const hours = parseFloat(job.hours) || 0;
+  const rate = parseFloat(job.rate) || parseFloat(client.rate) || 0;
+  const currency = job.currency || client.currency || 'CZK';
+  const total = hours * rate;
+
+  let dateRange = '';
+  if (job.start_date && job.end_date) {
+    dateRange = `${formatDate(job.start_date)} - ${formatDate(job.end_date)}`;
+  } else if (job.start_date) {
+    dateRange = formatDate(job.start_date);
+  }
+
+  const descParts = [job.name];
+  if (job.description) descParts.push(job.description);
+  if (job.address) descParts.push(job.address);
+  if (dateRange) descParts.push(dateRange);
+  const fullDescription = descParts.join('\n');
+
+  // Generate invoice ID in format YYMMDD-II
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `${yy}${mm}${dd}`;
+
+  const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
+  let nextIncrement = 1;
+  if (todayInvoices.length > 0) {
+    const increments = todayInvoices.map(inv => {
+      const parts = inv.id.split('-');
+      return parts.length === 2 ? parseInt(parts[1]) : 0;
+    });
+    nextIncrement = Math.max(...increments) + 1;
+  }
+  const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
+
+  const invoiceData = {
+    id: invoiceId,
+    client_id: job.client_id,
+    items: JSON.stringify([{
+      description: fullDescription,
+      hours: hours,
+      rate: rate
+    }]),
+    total: total,
+    status: 'unpaid',
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  };
+
+  try {
+    await database.saveInvoice(invoiceData);
+    await database.saveJob({ ...job, billed: true });
+    await loadData();
+    showView('dashboard');
+    showToast('Invoice created successfully');
+  } catch (err) {
+    console.error('Failed to create invoice:', err);
+    showToast('Failed to create invoice', 'error');
+  }
+}
+
 async function saveProfile(e) {
   e.preventDefault();
-  const form = document.getElementById('profileForm');
+  const form = e.target;
   const formData = new FormData(form);
   const data = Object.fromEntries(formData);
 
-  // Group bank accounts
   const bank_entries = [];
   for (let i = 1; i <= 3; i++) {
     const label = data[`bank_label_${i}`];
     const number = data[`bank_number_${i}`];
+    if (label || number) {
+      bank_entries.push({ label: label || '', number: number || '' });
+    }
     delete data[`bank_label_${i}`];
     delete data[`bank_number_${i}`];
+  }
 
+  const id_entries = [];
+  for (let i = 1; i <= 4; i++) {
+    const label = data[`id_label_${i}`];
+    const number = data[`id_number_${i}`];
     if (label || number) {
-      bank_entries.push({ label, number });
+      id_entries.push({ label: label || '', number: number || '' });
     }
   }
 
-  // Remove empty ID fields
-  for (let i = 1; i <= 4; i++) {
-    if (data[`id_label_${i}`] === '') delete data[`id_label_${i}`];
-    if (data[`id_number_${i}`] === '') delete data[`id_number_${i}`];
-  }
-
   data.bank_entries = bank_entries;
+  data.id_entries = id_entries;
 
-  try {
-    await database.saveBusiness(data);
-    state.profile = await database.getBusiness();
-    showView('profile');
-    showToast(t('saveSuccess'));
-  } catch (err) {
-    console.error('Save failed:', err);
-    showToast('Save failed', 'error');
-  }
+  await database.saveProfile(data);
+  state.profile = data;
+  showToast(t('saveSuccess'));
 }
 
 // Invoice Generation
@@ -978,241 +1045,110 @@ async function generateInvoice() {
   const month = document.getElementById('invoiceMonth').value;
 
   if (!clientId || !month) {
-    showToast(t('selectClientAndMonth'), 'warning');
-    return;
-  }
-
-  // Generate date range for the month
-  const [year, mo] = month.split('-');
-  const startDate = `${year}-${mo}-01`;
-  const endDate = new Date(year, parseInt(mo), 0).toISOString().substring(0, 10);
-
-  // Filter timesheets for the selected client and month that haven't been billed
-  const worklogs = state.timesheets.filter(ts =>
-    ts.client_id === clientId &&
-    !ts.billed &&
-    ts.date >= startDate &&
-    ts.date <= endDate
-  );
-
-  if (worklogs.length === 0) {
-    showToast(t('noUnbilledWorklogs'), 'warning');
+    showToast(t('error'), 'error');
     return;
   }
 
   const client = state.clients.find(c => c.id === clientId);
-  const rate = client.rate || 0;
-  const rateType = client.rate_type || 'hourly';
+  const [year, monthNum] = month.split('-');
 
-  let totalHours = 0;
-  worklogs.forEach(ts => totalHours += parseFloat(ts.hours));
+  const timesheets = state.timesheets.filter(ts => {
+    const tsDate = new Date(ts.date);
+    return ts.client_id === clientId &&
+           tsDate.getFullYear() === parseInt(year) &&
+           tsDate.getMonth() === parseInt(monthNum) - 1;
+  });
 
-  const amount = totalHours * rate;
+  if (timesheets.length === 0) {
+    showToast('No work logs found for this period', 'error');
+    return;
+  }
 
-  const invoiceData = {
+  const totalHours = timesheets.reduce((sum, ts) => sum + parseFloat(ts.hours || 0), 0);
+  const rate = parseFloat(client.rate || 0);
+  const total = totalHours * rate;
+
+  // generate invoice id in same format as createInvoiceFromJob
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `${yy}${mm}${dd}`;
+
+  const todayInvoices = state.invoices.filter(inv => inv.id && inv.id.startsWith(datePrefix));
+  let nextIncrement = 1;
+  if (todayInvoices.length > 0) {
+    const increments = todayInvoices.map(inv => {
+      const parts = inv.id.split('-');
+      return parts.length === 2 ? parseInt(parts[1]) : 0;
+    });
+    nextIncrement = Math.max(...increments) + 1;
+  }
+  const invoiceId = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
+
+  const invoice = {
+    id: invoiceId,
     client_id: clientId,
-    invoice_number: `INV-${Date.now()}`,
-    created_at: new Date().toISOString().substring(0, 10),
-    due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10), // 14 days later
+    items: JSON.stringify(timesheets.map(ts => ({
+      date: ts.date,
+      description: ts.notes || 'Work',
+      hours: ts.hours,
+      rate: rate
+    }))),
+    subtotal: total,
+    tax: 0,
+    total: total,
     status: 'unpaid',
-    total: amount,
-    items: JSON.stringify([
-      {
-        description: `Work logs for ${client.name} from ${formatDate(startDate)} to ${formatDate(endDate)}`,
-        quantity: totalHours,
-        unit_price: rate,
-        unit: rateType,
-        total: amount
-      }
-    ]),
-    linked_worklogs: JSON.stringify(worklogs.map(ts => ts.id))
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    meta: JSON.stringify({ month })
   };
 
-  try {
-    await database.saveInvoice(invoiceData);
-
-    // Mark timesheets as billed
-    await database.markTimesheetsBilled(worklogs.map(ts => ts.id));
-
-    await loadData(); // Reload all data
-    showView('dashboard');
-    showToast(t('invoiceSuccess'));
-  } catch (err) {
-    console.error('Invoice generation failed:', err);
-    showToast('Invoice generation failed', 'error');
-  }
-}
-
-// Job to Invoice
-window.createInvoiceFromJob = async (jobId) => {
-  const job = state.jobs.find(j => j.id === jobId);
-  if (!job) {
-    showToast(t('jobNotFound'), 'error');
-    return;
-  }
-  if (job.billed) {
-    showToast(t('jobAlreadyBilled'), 'warning');
-    return;
-  }
-
-  const client = state.clients.find(c => c.id === job.client_id);
-  if (!client) {
-    showToast(t('clientNotFound'), 'error');
-    return;
-  }
-
-  const jobLines = await database.getJobLines(jobId);
-  const expenses = jobLines.filter(l => l.type === 'expense');
-  const deposits = jobLines.filter(l => l.type === 'deposit');
-
-  const rate = parseFloat(job.rate || client.rate || 0);
-  const hours = parseFloat(job.hours || 0);
-
-  const jobAmount = rate * hours;
-  const totalExpenses = expenses.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-  const totalDeposits = deposits.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-  const totalInvoice = jobAmount + totalExpenses;
-
-  const invoiceItems = [];
-
-  if (jobAmount > 0) {
-    invoiceItems.push({
-      description: job.name,
-      quantity: hours,
-      unit_price: rate,
-      unit: client.rate_type || 'hourly',
-      total: jobAmount
-    });
-  }
-
-  expenses.forEach(exp => {
-    invoiceItems.push({
-      description: `${t('expense')}: ${exp.description}`,
-      quantity: 1,
-      unit_price: exp.amount,
-      unit: 'item',
-      total: exp.amount,
-      is_expense: true
-    });
-  });
-
-  const invoiceData = {
-    client_id: job.client_id,
-    job_id: job.id,
-    invoice_number: `INV-${Date.now()}`,
-    created_at: new Date().toISOString().substring(0, 10),
-    due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10),
-    status: 'unpaid',
-    total: totalInvoice - totalDeposits,
-    items: JSON.stringify(invoiceItems),
-    linked_deposits: JSON.stringify(deposits.map(d => d.id)),
-    deposit_amount: totalDeposits
-  };
-
-  try {
-    await database.saveInvoice(invoiceData);
-    await database.markJobBilled(job.id);
-
-    await loadData();
-    showView('jobs');
-    showToast(t('invoiceSuccess'));
-  } catch (err) {
-    console.error('Invoice generation failed:', err);
-    showToast('Invoice generation failed', 'error');
-  }
-}
-
-// Line Item Functions (used in showJobForm)
-function collectLineItems(type) {
-  const items = [];
-  document.querySelectorAll(`#${type}sList .line-item`).forEach(div => {
-    const description = div.querySelector('input[name^="description_"]').value;
-    const amount = div.querySelector('input[name^="amount_"]').value;
-    const id = div.dataset.id;
-    if (description && amount) {
-      items.push({ id, type, description, amount: parseFloat(amount) });
-    }
-  });
-  return items;
-}
-
-window.addExpenseLine = function(description = '', amount = '', id = null) {
-  const list = document.getElementById('expensesList');
-  const uid = id || `new-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-
-  list.insertAdjacentHTML('beforeend', `
-    <div class="line-item" data-id="${id || ''}">
-      <div class="form-group">
-        <label>${t('expenseDescription')}</label>
-        <input type="text" name="description_expense_${uid}" value="${description}" required>
-      </div>
-      <div class="form-group">
-        <label>${t('lineAmount')}</label>
-        <input type="number" name="amount_expense_${uid}" value="${amount}" step="0.01" required>
-      </div>
-      <button type="button" class="btn-icon delete-line" onclick="this.closest('.line-item').remove()">❌</button>
-    </div>
-  `);
-}
-
-window.addDepositLine = function(description = '', amount = '', id = null) {
-  const list = document.getElementById('depositsList');
-  const uid = id || `new-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-
-  list.insertAdjacentHTML('beforeend', `
-    <div class="line-item" data-id="${id || ''}">
-      <div class="form-group">
-        <label>${t('depositDescription')}</label>
-        <input type="text" name="description_deposit_${uid}" value="${description}" required>
-      </div>
-      <div class="form-group">
-        <label>${t('lineAmount')}</label>
-        <input type="number" name="amount_deposit_${uid}" value="${amount}" step="0.01" required>
-      </div>
-      <button type="button" class="btn-icon delete-line" onclick="this.closest('.line-item').remove()">❌</button>
-    </div>
-  `);
-}
-
-// CRUD Wrappers
-window.editClient = (id) => showClientForm(id);
-window.editJob = (id) => showJobForm(id);
-window.editTimesheet = (id) => showTimesheetForm(id);
-
-window.deleteClient = async (id) => {
-  if (confirm(t('confirmDelete'))) {
-    await database.delete('clients', id);
-    await loadData();
-    showView('clients');
-    showToast(t('deleteSuccess'));
-  }
-};
-
-window.deleteJob = async (id) => {
-  if (confirm(t('confirmDelete'))) {
-    await database.delete('jobs', id);
-    await loadData();
-    showView('jobs');
-    showToast(t('deleteSuccess'));
-  }
-};
-
-window.deleteTimesheet = async (id) => {
-  if (confirm(t('confirmDelete'))) {
-    await database.delete('timesheets', id);
-    await loadData();
-    showView('worklogs');
-    showToast(t('deleteSuccess'));
-  }
-};
-
-// Data Management
-async function backupData() {
-  showToast(t('loading'), 'warning');
-  const data = await database.exportData();
-  const jsonString = JSON.stringify(data, null, 2);
-  downloadFile(jsonString, `bizzhub_backup_${new Date().toISOString().substring(0, 10)}.json`, 'application/json');
+  await database.saveInvoice(invoice);
+  await loadData();
+  showView('dashboard');
   showToast(t('saveSuccess'));
+}
+
+
+// Export Functions
+function exportLedger(format) {
+  const data = state.invoices.map((inv, i) => ({
+    '#': i + 1,
+    'Date': formatDate(inv.created_at),
+    'Description': inv.description || '-',
+    'Type': 'Invoice',
+    'Amount': inv.total?.toFixed(2) || '0.00',
+    'Status': inv.status || 'pending'
+  }));
+
+  if (format === 'csv') {
+    const csv = [
+      Object.keys(data[0]).join(','),
+      ...data.map(row => Object.values(row).join(','))
+    ].join('\n');
+
+    downloadFile(csv, 'ledger.csv', 'text/csv');
+  } else if (format === 'xlsx') {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Ledger');
+    XLSX.writeFile(wb, 'ledger.xlsx');
+  }
+}
+
+function backupData() {
+  const backup = {
+    clients: state.clients,
+    jobs: state.jobs,
+    timesheets: state.timesheets,
+    invoices: state.invoices,
+    profile: state.profile,
+    date: new Date().toISOString()
+  };
+
+  const json = JSON.stringify(backup, null, 2);
+  downloadFile(json, `bizzhub-backup-${new Date().toISOString().split('T')[0]}.json`, 'application/json');
+  showToast('Backup downloaded successfully');
 }
 
 async function restoreData(file) {
@@ -1220,209 +1156,307 @@ async function restoreData(file) {
 
   const reader = new FileReader();
   reader.onload = async (e) => {
-    try {
-      showToast(t('loading'), 'warning');
-      const data = JSON.parse(e.target.result);
-      await database.importData(data);
-      await loadData();
-      showView('dashboard');
-      showToast(t('restoreSuccess'));
-    } catch (error) {
-      console.error('Restore failed:', error);
-      showToast('Restore failed: Invalid file format or data structure.', 'error');
-    }
+    const b = JSON.parse(e.target.result);
+    if (!confirm('Replace everything?')) return;
+    const u = state.currentUser.id;
+
+    // 1. profile
+    if (b.profile) await database.saveProfile({...b.profile, user_id: u});
+    // 2. clients
+    for (const c of b.clients) await database.saveClient({...c, user_id: u});
+    // 3. jobs
+    for (const j of b.jobs)       await database.saveJob({...j, user_id: u});
+    // 4. timesheets
+    for (const t of b.timesheets) await database.saveTimesheet({...t, user_id: u});
+    // 5. invoices
+    for (const i of b.invoices)   await database.saveInvoice({...i, user_id: u});
+
+    await loadData();
+    showView('dashboard');
+    showToast('Restored');
   };
-  reader.readAsText(file);
 }
 
-// PDF and XLSX Exports
+
+window.editJob = (id) => showJobForm(id);
+window.createInvoiceFromJob = createInvoiceFromJob;
+window.deleteJob = async (id) => {
+  if (confirm(t('confirmDelete'))) {
+    await database.deleteJob(id);
+    await loadData();
+    showView('jobs');
+    showToast(t('deleteSuccess'));
+  }
+};
+
+window.editTimesheet = (id) => showTimesheetForm(id);
+window.deleteTimesheet = async (id) => {
+  if (confirm(t('confirmDelete'))) {
+    await database.deleteTimesheet(id);
+    await loadData();
+    showView('worklogs');
+    showToast(t('deleteSuccess'));
+  }
+};
+
+// Replace the two functions `window.viewInvoice` and `window.downloadInvoice` in app.js
+// This version forces a bilingual template: Czech first, English second. Layout and logic unchanged.
+
 window.viewInvoice = async (id) => {
   const inv = state.invoices.find(i => i.id === id);
   if (!inv) return;
-  const url = await generateInvoicePdf(inv);
-  window.open(url, '_blank');
+
+  const client = state.clients.find(c => c.id === inv.client_id);
+  const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>FAKTURA / INVOICE #${inv.id}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; padding: 50px; max-width: 900px; margin: 0 auto; color: #000; background: #fff; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
+        .invoice-title { font-size: 36px; font-weight: bold; }
+        .invoice-meta { text-align: right; font-size: 14px; line-height: 1.8; }
+        .invoice-meta div { margin-bottom: 2px; }
+        .separator { border-bottom: 2px solid #000; margin: 25px 0; }
+        .parties { display: flex; justify-content: space-between; margin: 30px 0 40px 0; }
+        .party { width: 48%; }
+        .party h3 { font-size: 15px; font-weight: bold; margin-bottom: 8px; }
+        .party p { margin: 0; font-size: 14px; line-height: 1.5; }
+        table { width: 100%; border-collapse: collapse; margin: 30px 0; }
+        th { background: #f8f8f8; padding: 12px; text-align: left; font-weight: bold; font-size: 13px; border-bottom: 2px solid #333; }
+        th.right { text-align: right; }
+        td { padding: 12px; font-size: 14px; border-bottom: 1px solid #e0e0e0; }
+        td:first-child { max-width: 400px; word-wrap: break-word; white-space: normal; }
+        td.right { text-align: right; }
+        .total-section { text-align: right; margin-top: 30px; }
+        .total-line { font-size: 20px; font-weight: bold; padding: 15px 0; border-top: 2px solid #000; }
+        .footer-info { margin-top: 50px; font-size: 13px; line-height: 1.8; }
+        .footer-info p { margin: 3px 0; }
+        @media print { body { padding: 30px; } .no-print { display: none; } }
+        .print-btn { padding: 14px 28px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; margin-top: 40px; font-weight: 500; }
+        .print-btn:hover { background: #4f46e5; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1 class="invoice-title">FAKTURA / INVOICE</h1>
+        <div class="invoice-meta">
+          <div><strong>Číslo faktury / Invoice #:</strong> ${inv.id}</div>
+          <div><strong>Datum vystavení / Issue date:</strong> ${formatDate(inv.created_at)}</div>
+          <div><strong>Datum splatnosti / Due date:</strong> ${formatDate(inv.due_date)}</div>
+          <div><strong>Forma úhrady / Payment Method:</strong> Bankovní převod / Bank transfer</div>
+        </div>
+      </div>
+
+      <div class="separator"></div>
+
+      <div class="parties">
+        <div class="party">
+          <h3>Dodavatel / Supplier</h3>
+          <p>
+            <strong>${state.profile?.name || 'Your Business'}</strong><br>
+            ${state.profile?.address || ''}<br>
+            ${(() => {
+              const parts = [];
+              const ids = state.profile?.id_entries || [];
+              if (Array.isArray(ids) && ids.length) return ids.map(id => `${id.label}: ${id.number}`).join('<br>');
+              for (let i=1;i<=4;i++){
+                const label = state.profile?.[`id_label_${i}`];
+                const num = state.profile?.[`id_number_${i}`];
+                if (label || num) parts.push(`${label || 'ID'}: ${num || ''}`);
+              }
+              return parts.join('<br>');
+            })() || ''}
+          </p>
+        </div>
+
+        <div class="party">
+          <h3>Odběratel / Customer</h3>
+          <p>
+            <strong>${client?.name || '-'}</strong><br>
+            ${client?.address || ''}<br>
+            ${(() => {
+              const parts = [];
+              const ids = client?.id_entries || [];
+              if (Array.isArray(ids) && ids.length) return ids.map(id => `${id.label}: ${id.number}`).join('<br>');
+              for (let i=1;i<=4;i++){
+                const label = client?.[`id_label_${i}`];
+                const num = client?.[`id_number_${i}`];
+                if (label || num) parts.push(`${label || 'ID'}: ${num || ''}`);
+              }
+              return parts.join('<br>');
+            })() || ''}
+          </p>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Položka / Description</th>
+            <th class="right">Počet hodin / Hours</th>
+            <th class="right">Sazba/hod. / Rate</th>
+            <th class="right">Částka / Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(item => `
+            <tr>
+              <td>${item.description}</td>
+              <td class="right">${(item.hours || 0).toFixed(2)}</td>
+              <td class="right">${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}</td>
+              <td class="right">${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div class="total-line">CELKEM K ÚHRADĚ / TOTAL DUE: ${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}</div>
+      </div>
+
+      <div class="footer-info">
+        <p><strong>Bankovní spojení / Bank Details:</strong></p>
+        ${state.profile?.bank_entries?.map(acc => `<p>${acc.label}: ${acc.number}</p>`).join('') || '<p>Nezadáno / Not specified</p>'}
+        <p style="margin-top: 15px;">Nejsem plátce DPH. / Not a VAT payer.</p>
+      </div>
+
+      <div class="no-print">
+        <button class="print-btn" onclick="window.print()">Tisk / Print</button>
+      </div>
+    </body>
+    </html>
+  `);
+  win.document.close();
 };
+
 
 window.downloadInvoice = async (id) => {
   const inv = state.invoices.find(i => i.id === id);
   if (!inv) return;
-  await generateInvoicePdf(inv, true); // true for download
-};
 
-async function generateInvoicePdf(inv, download = false) {
-  // Ensure jspdf is available globally (from app.html script tag)
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
   const client = state.clients.find(c => c.id === inv.client_id);
-  const profile = state.profile || {};
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
-  const currency = client?.currency || 'CZK';
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true, orientation: 'p', unit: 'mm', format: 'a4' });
 
-  doc.setFontSize(18);
-  doc.text(t('invoice'), 20, 20);
+  // Set font that supports Czech characters
+  doc.setFont('Helvetica', 'normal');
 
-  doc.setFontSize(10);
-  doc.text(`${t('invoiceNumber')}: ${inv.invoice_number}`, 150, 20);
-  doc.text(`${t('issueDate')}: ${formatDate(inv.created_at)}`, 150, 25);
-  doc.text(`${t('dueDate')}: ${formatDate(inv.due_date)}`, 150, 30);
+  // Remove auto header/date metadata entirely
+  doc.setProperties({ title: `invoice-${inv.id}` });
 
-  // Business Info (left side)
+  doc.setFontSize(24);
+  doc.text('FAKTURA / INVOICE', 20, 20);
+
+  doc.setFontSize(11);
+  doc.text(`Číslo faktury / Invoice #: ${inv.id}`, 20, 35);
+  doc.text(`Datum vystavení / Issue date: ${formatDate(inv.created_at)}`, 20, 42);
+  doc.text(`Datum splatnosti / Due date: ${formatDate(inv.due_date)}`, 20, 49);
+  doc.text('Forma úhrady / Payment: Bankovní převod / Bank transfer', 20, 56);
+
+  doc.setLineWidth(0.5);
+  doc.line(20, 62, 190, 62);
+
   doc.setFontSize(12);
-  doc.text(profile.name || 'My Business', 20, 40);
+  doc.setFont(undefined, 'bold');
+  doc.text('Dodavatel / Supplier', 20, 72);
+  doc.setFont(undefined, 'normal');
   doc.setFontSize(10);
-  let y = 45;
-  if (profile.address) { doc.text(profile.address, 20, y); y += 5; }
-  if (profile.email) { doc.text(profile.email, 20, y); y += 5; }
-  y += 2;
-  for (let i = 1; i <= 4; i++) {
-    const label = profile[`id_label_${i}`] || '';
-    const number = profile[`id_number_${i}`] || '';
-    if (label && number) {
-      doc.text(`${label}: ${number}`, 20, y); y += 4;
-    }
-  }
+  let y = 78;
+  doc.text(state.profile?.name || 'Your Business', 20, y);
 
-  // Client Info (right side)
-  doc.setFontSize(12);
-  doc.text(t('client'), 150, 40);
-  doc.setFontSize(10);
-  y = 45;
-  doc.text(client?.name || '-', 150, y); y += 5;
-  if (client?.address) { doc.text(client.address, 150, y); y += 5; }
-  if (client?.invoice_email) { doc.text(client.invoice_email, 150, y); y += 5; }
-  y += 2;
-  for (let i = 1; i <= 4; i++) {
-    const label = client[`id_label_${i}`] || '';
-    const number = client[`id_number_${i}`] || '';
-    if (label && number) {
-      doc.text(`${label}: ${number}`, 150, y); y += 4;
-    }
-  }
-
-  // Items Table
-  y = Math.max(y + 10, 80);
-  const startY = y;
-  const tableRows = [];
-
-  items.forEach(item => {
-    tableRows.push([
-      item.description,
-      item.quantity.toLocaleString(),
-      `${formatCurrency(item.unit_price)} ${currency}`,
-      `${formatCurrency(item.total)} ${currency}`
-    ]);
-  });
-
-  doc.autoTable({
-    startY: startY,
-    head: [[t('description'), t('quantity'), t('unitPrice'), t('lineTotal')]],
-    body: tableRows,
-    theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 1, overflow: 'linebreak' },
-    headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0] },
-    columnStyles: {
-      1: { halign: 'right', cellWidth: 15 },
-      2: { halign: 'right', cellWidth: 20 },
-      3: { halign: 'right', cellWidth: 20 },
-    },
-    didDrawPage: function(data) {
-      y = data.cursor.y + 10;
-    }
-  });
-
-  // Totals
-  const totalAmount = inv.total || 0;
-  const depositAmount = inv.deposit_amount || 0;
-  const amountDue = totalAmount - depositAmount;
-
-  doc.setFontSize(10);
-  doc.text(`${t('subtotal')}:`, 150, y);
-  doc.text(`${formatCurrency(inv.total_before_deposit || inv.total || 0)} ${currency}`, 180, y, null, null, 'right');
-  y += 5;
-
-  if (depositAmount > 0) {
-    doc.text(`-${t('totalDeposits')}:`, 150, y);
-    doc.text(`${formatCurrency(depositAmount)} ${currency}`, 180, y, null, null, 'right');
+  if (state.profile?.address) {
     y += 5;
+    const addressLines = doc.splitTextToSize(state.profile.address, 80);
+    doc.text(addressLines, 20, y);
+    y += (addressLines.length * 4);
   }
 
-  doc.setFontSize(14);
-  doc.text(`${t('amountDue')}:`, 150, y);
-  doc.text(`${formatCurrency(amountDue)} ${currency}`, 180, y, null, null, 'right');
-  y += 10;
+  const supplierIds = Array.isArray(state.profile?.id_entries) && state.profile.id_entries.length
+    ? state.profile.id_entries
+    : Array.from({length: 4}, (_, i) => ({
+        label: state.profile?.[`id_label_${i+1}`],
+        number: state.profile?.[`id_number_${i+1}`]
+      })).filter(e => e.label || e.number);
+  supplierIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); });
 
-  // Footer / Status
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.text('Odběratel / Customer', 110, 72);
+  doc.setFont(undefined, 'normal');
   doc.setFontSize(10);
-  doc.text(`Status: ${t(inv.status)}`, 20, y);
-  y += 5;
+  y = 78;
+  doc.text(client?.name || '-', 110, y);
+  if (client?.address) { y += 5; doc.text(client.address, 110, y); }
+  if (client?.invoice_email) { y += 5; doc.text(client.invoice_email, 110, y); }
+  const clientIds = Array.isArray(client?.id_entries) && client.id_entries.length
+    ? client.id_entries
+    : Array.from({length: 4}, (_, i) => ({
+        label: client?.[`id_label_${i+1}`],
+        number: client?.[`id_number_${i+1}`]
+      })).filter(e => e.label || e.number);
+  clientIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
 
-  if (profile.bank_entries && profile.bank_entries.length > 0) {
-    doc.setFontSize(12);
-    doc.text(t('bankInfo'), 20, y);
-    doc.setFontSize(10);
-    y += 4;
-    profile.bank_entries.forEach(acc => { doc.text(`${acc.label}: ${acc.number}`, 20, y); y += 4; });
-  }
+  y = Math.max(y, 95) + 10;
 
-  // Save or return for viewing
-  if (download) {
-    doc.save(`invoice-${inv.invoice_number}.pdf`);
-  } else {
-    // Return a data URL for viewing
-    return doc.output('datauristring');
-  }
-}
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'bold');
+  doc.text('Položka / Description', 20, y);
+  doc.text('Počet hodin / Hours', 120, y, { align: 'right' });
+  doc.text('Sazba/hod. / Rate', 150, y, { align: 'right' });
+  doc.text('Částka / Amount', 190, y, { align: 'right' });
 
-async function exportLedger(type) {
-  showToast(t('loading'), 'warning');
+  y += 2;
+  doc.setLineWidth(0.3);
+  doc.line(20, y, 190, y);
+  y += 7;
 
-  // Prepare data for ledger
-  const ledgerData = state.invoices.map(inv => {
-    const client = state.clients.find(c => c.id === inv.client_id);
-    const currency = client?.currency || 'CZK';
-    const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
-    const description = items.length > 0 ? items[0].description : '';
+  doc.setFont(undefined, 'normal');
+  items.forEach(item => {
+    if (y > 270) { doc.addPage(); y = 20; }
 
-    return {
-      'Date': inv.created_at,
-      'Client': client?.name || '-',
-      'Description': description,
-      'Type': t('invoice'),
-      'Amount': inv.total || 0,
-      'Currency': currency,
-      'Status': t(inv.status || 'pending'),
-    };
+    const descWidth = 90;
+    const descLines = doc.splitTextToSize(item.description, descWidth);
+
+    doc.text(descLines, 20, y);
+    doc.text((item.hours || 0).toFixed(2), 120, y, { align: 'right' });
+    doc.text(`${formatCurrency(item.rate || 0)} ${client?.currency || 'CZK'}`, 150, y, { align: 'right' });
+    doc.text(`${formatCurrency((item.hours * item.rate) || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+
+    y += Math.max(7, descLines.length * 5);
   });
 
-  if (type === 'csv') {
-    const csvContent = arrayToCsv(ledgerData);
-    downloadFile(csvContent, 'bizzhub_ledger.csv', 'text/csv;charset=utf-8;');
-  } else if (type === 'xlsx') {
-    const ws = XLSX.utils.json_to_sheet(ledgerData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Ledger');
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    downloadFile(wbout, 'bizzhub_ledger.xlsx', 'application/octet-stream');
+  y += 5;
+  doc.setLineWidth(0.5);
+  doc.line(120, y, 190, y);
+  y += 8;
+
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.text('CELKEM K ÚHRADĚ / TOTAL DUE:', 20, y);
+  doc.text(`${formatCurrency(inv.total || 0)} ${client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+
+  y += 15;
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  if (state.profile?.bank_entries?.length) {
+    doc.text('Bankovní spojení / Bank Details:', 20, y);
+    y += 6;
+    state.profile.bank_entries.forEach(acc => { doc.text(`${acc.label}: ${acc.number}`, 20, y); y += 5; });
   }
+  y += 6;
+  doc.text('Nejsem plátce DPH. / Not a VAT payer.', 20, y);
 
-  showToast(t('saveSuccess'));
-}
-
-function arrayToCsv(data) {
-  const header = Object.keys(data[0]);
-  const csv = [
-    header.join(','),
-    ...data.map(row => header.map(fieldName => JSON.stringify(row[fieldName])).join(','))
-  ].join('\n');
-  return csv;
-}
-
-window.markInvoicePaid = async (id) => {
-  await database.markInvoicePaid(id);
-  await loadData();
-  showView('dashboard');
-  showToast(t('saveSuccess'));
+  doc.save(`invoice-${inv.id}.pdf`);
 };
+
 
 window.deleteInvoice = async (id) => {
   if (confirm(t('confirmDelete'))) {
@@ -1463,11 +1497,16 @@ function downloadFile(content, filename, type) {
 function showToast(message, type = 'success') {
   const toast = document.getElementById('toast');
   toast.textContent = message;
-  toast.className = `toast show toast-${type}`;
+  toast.className = `toast ${type} show`;
+
   setTimeout(() => {
     toast.classList.remove('show');
   }, 3000);
 }
 
-// Start the app
-init();
+// Initialize on load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}

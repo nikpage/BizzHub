@@ -1,4 +1,4 @@
-// Supabase Database Adapter for BizzHub - COMPLETE and SECURE
+// Supabase Database Adapter for BizzHub - OPTIMIZED
 
 class Database {
   constructor() {
@@ -39,348 +39,329 @@ class Database {
     });
   }
 
-  /**
-   * Universal request handler. Always POSTs to the secure Netlify proxy function.
-   * @param {string} endpoint - The Supabase table endpoint (e.g., 'clients?select=*').
-   * @param {object} options - Request options including method and body.
-   */
   async request(endpoint, options = {}) {
     console.info('[DB] REQUEST ->', { endpoint, options });
 
-    const token = window.netlifyIdentity.currentUser()?.token?.access_token;
-    if (!token) throw new Error('Authentication token not available. User must log in.');
-
-    const cacheKey = this.getCacheKey(endpoint);
-    const method = options.method || 'GET';
-
-    if (method === 'GET') {
-      const cached = this.getFromCache(cacheKey);
-      if (cached) return cached;
-    }
-
     let res;
     try {
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` // Netlify Identity token for proxy validation
-      };
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : process.env.URL || '';
+      const headers = { 'Content-Type': 'application/json' };
 
-      const proxyPayload = {
-          endpoint: endpoint, // Supabase endpoint
-          method: method,     // Intended Supabase method (GET, POST, PATCH, DELETE)
-          body: options.body  // The data payload
-      };
+      // CRITICAL FIX: Add Prefer header for POST and PATCH
+      if (options.method === 'POST' || options.method === 'PATCH') {
+        headers['Prefer'] = 'return=representation';
+      }
 
-      const url = `${baseUrl}/.netlify/functions/db-proxy`;
-
-      res = await fetch(url, {
-        method: 'POST', // The actual method for the proxy function
-        headers: headers,
-        body: JSON.stringify(proxyPayload)
-      });
-
-      if (!res.ok) {
-        let errorData;
-        try {
-            errorData = await res.json();
-        } catch (e) {
-            throw new Error(`DB Error: ${res.status} - Failed to parse error response.`);
+      // SECURITY: Add Netlify Identity token
+      if (typeof window !== 'undefined' && window.netlifyIdentity) {
+        const user = window.netlifyIdentity.currentUser();
+        if (user && user.token && user.token.access_token) {
+          headers['Authorization'] = `Bearer ${user.token.access_token}`;
         }
-        throw new Error(`DB Error: ${res.status} - ${errorData.message || res.statusText || 'Unknown Error'}`);
       }
 
-      const data = await res.json();
-
-      if (method === 'GET') {
-        this.setCache(cacheKey, data);
-      } else {
-        // Clear relevant cache on mutation
-        this.clearCache(endpoint.split('?')[0]);
-      }
-
-      return data;
-    } catch (error) {
-      console.error('[DB] FAILED REQUEST ->', error);
-      throw error;
+      res = await fetch(`${baseUrl}/.netlify/functions/db-proxy`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          method: options.method || 'GET',
+          endpoint: endpoint,
+          body: options.body
+        })
+      });
+    } catch (err) {
+      console.error('[DB] NETWORK ERROR', err);
+      throw new Error('Network connection lost or Netlify function unreachable.');
     }
+
+    const text = await res.text();
+    let body;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch (e) {
+      body = text;
+    }
+
+    console.info('[DB] RESPONSE <-', { status: res.status, ok: res.ok, body });
+
+    if (!res.ok) {
+      throw new Error(`Database error: ${res.status} ${JSON.stringify(body)}`);
+    }
+
+    return body;
   }
 
-  // --- Utility Methods ---
+  // OPTIMIZED: Batch load all dashboard data in one function call
+  async batchRequest(requests) {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : process.env.URL || '';
+    const headers = { 'Content-Type': 'application/json' };
 
-  async update(table, id, data) {
-    // CRITICAL: Ensure user_id is set before update for RLS and security
-    const updateData = Array.isArray(data) ?
-      data.map(d => ({ ...d, user_id: this.userId })) :
-      { ...data, user_id: this.userId };
+    if (typeof window !== 'undefined' && window.netlifyIdentity) {
+      const user = window.netlifyIdentity.currentUser();
+      if (user && user.token && user.token.access_token) {
+        headers['Authorization'] = `Bearer ${user.token.access_token}`;
+      }
+    }
 
-    return this.request(`${table}?id=eq.${id}`, { method: 'PATCH', body: updateData });
+    const res = await fetch(`${baseUrl}/.netlify/functions/db-batch`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ requests })
+    });
+
+    if (!res.ok) {
+      throw new Error(`Batch request failed: ${res.status}`);
+    }
+
+    return res.json();
   }
 
-  async insert(table, data) {
-    // CRITICAL: Ensure user_id is set before insert for RLS and security
-    const insertData = Array.isArray(data) ?
-      data.map(d => ({ ...d, user_id: this.userId })) :
-      { ...data, user_id: this.userId };
-
-    return this.request(`${table}`, { method: 'POST', body: insertData });
-  }
-
-  async softDelete(table, id) {
-    // Moves the item to trash
-    return this.update(table, id, { deleted: true, updated_at: new Date().toISOString() });
-  }
-
-  async hardDelete(table, id) {
-    // Permanently deletes an item
-    return this.request(`${table}?id=eq.${id}`, { method: 'DELETE' });
-  }
-
-  async restore(table, id) {
-    // Restores item from trash
-    return this.update(table, id, { deleted: false, updated_at: new Date().toISOString() });
-  }
-
-  async requestBatch(requests) {
-    const token = window.netlifyIdentity.currentUser()?.token?.access_token;
-    if (!token) throw new Error('Authentication token not available.');
-
-    const cacheKey = this.getCacheKey('batch:' + JSON.stringify(requests));
+  // OPTIMIZED: Load all dashboard data at once
+  async loadDashboard() {
+    const cacheKey = this.getCacheKey('dashboard');
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    const url = `${baseUrl}/.netlify/functions/db-batch`;
-
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(requests)
-      });
+      // Try batch endpoint first (if available)
+      const requests = [
+        { key: 'clients', endpoint: `clients?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
+        { key: 'jobs', endpoint: `jobs?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
+        { key: 'timesheets', endpoint: `timesheets?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
+        { key: 'invoices', endpoint: `invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
+        { key: 'business', endpoint: `business?user_id=eq.${this.userId}&select=*` }
+      ];
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(`Batch Error: ${res.status} - ${errorData.message || res.statusText}`);
+      const results = await this.batchRequest(requests);
+      this.setCache(cacheKey, results);
+      return results;
+    } catch (e) {
+      // Fallback to parallel requests if batch endpoint doesn't exist
+      console.warn('[DB] Batch endpoint unavailable, using parallel requests');
+      const [clients, jobs, timesheets, invoices, business] = await Promise.all([
+        this.request(`clients?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
+        this.request(`jobs?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
+        this.request(`timesheets?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
+        this.request(`invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
+        this.request(`business?user_id=eq.${this.userId}&select=*`)
+      ]);
+
+      const results = { clients, jobs, timesheets, invoices, business: business[0] || null };
+      this.setCache(cacheKey, results);
+      return results;
+    }
+  }
+
+  async getAll(table) {
+    const cacheKey = this.getCacheKey(`${table}:all`);
+    const cached = this.getFromCache(cacheKey);
+    if (cached) return cached;
+
+    const softDeleteFilter = ['clients','jobs','timesheets','invoices','business'].includes(table) ? '&deleted=eq.false' : '';
+    const data = await this.request(`${table}?user_id=eq.${this.userId}${softDeleteFilter}&order=created_at.desc&select=*`);
+    this.setCache(cacheKey, data);
+    return data;
+  }
+
+  async getById(table, id) {
+    const data = await this.request(`${table}?id=eq.${id}&user_id=eq.${this.userId}`);
+    return data[0] || null;
+  }
+
+  async create(table, record) {
+    const data = await this.request(table, {
+      method: 'POST',
+      body: {
+        ...record,
+        user_id: this.userId,
+        deleted: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
-
-      const batchRes = await res.json();
-      this.setCache(cacheKey, batchRes);
-      return batchRes;
-    } catch (error) {
-      console.error('[DB] BATCH FAILED ->', error);
-      throw error;
+    });
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error(`Failed to create ${table} record - database returned no data`);
     }
+    this.clearCache(table);
+    this.clearCache('dashboard');
+    return data[0];
   }
 
+  async update(table, id, updates) {
+    const data = await this.request(`${table}?id=eq.${id}&user_id=eq.${this.userId}`, {
+      method: 'PATCH',
+      body: {
+        ...updates,
+        updated_at: new Date().toISOString(),
+      }
+    });
+    this.clearCache(table);
+    this.clearCache('dashboard');
+    return data[0];
+  }
 
-  // --- CRUD METHODS (by Table) ---
+  async softDelete(table, id) {
+    const result = await this.update(table, id, { deleted: true });
+    this.clearCache('trash');
+    return result;
+  }
 
-  // BUSINESS
+  async hardDelete(table, id) {
+    await this.request(`${table}?id=eq.${id}&user_id=eq.${this.userId}`, {
+      method: 'DELETE',
+    });
+    this.clearCache(table);
+    this.clearCache('dashboard');
+    this.clearCache('trash');
+    return true;
+  }
+
+  async restore(table, id) {
+    const result = await this.update(table, id, { deleted: false });
+    this.clearCache('trash');
+    return result;
+  }
+
   async getProfile() {
-    const data = await this.requestBatch({ business: `business?select=*` });
-    return data.business;
+    const data = await this.request(`business?user_id=eq.${this.userId}`);
+    return data[0] || null;
   }
 
-  async loadDashboard() {
-    const [clients, jobs, timesheets, invoices, business] = await Promise.all([
-      this.getAllClients(),
-      this.getAllJobs(),
-      this.getAllTimesheets(),
-      this.getAllInvoices(),
-      this.getProfile()
-    ]);
-
-    return {
-      clients: clients || [],
-      jobs: jobs || [],
-      timesheets: timesheets || [],
-      invoices: invoices || [],
-      business: business || null
-    };
+  async saveProfile(profile) {
+    const existing = await this.getProfile();
+    const saved = existing
+      ? await this.update('business', existing.id, profile)
+      : await this.create('business', profile);
+    return saved;
   }
 
-  async upsertProfile(data) {
-    // If the data already has an ID, use PATCH, otherwise use POST.
-    if (data.id) {
-        return this.update('business', data.id, data);
-    } else {
-        return this.insert('business', data);
-    }
+  async getClients() {
+    return this.getAll('clients');
   }
 
-  // CLIENTS
-  async getAllClients() {
-    return this.request(`clients?deleted=eq.false&order=name.asc&select=*`);
+  async getClient(id) {
+    return this.getById('clients', id);
   }
 
-  async addClient(data) {
-    return this.insert('clients', data);
-  }
-
-  async updateClient(id, data) {
-    return this.update('clients', id, data);
+  async saveClient(client) {
+    const saved = client.id
+      ? await this.update('clients', client.id, client)
+      : await this.create('clients', client);
+    return saved;
   }
 
   async deleteClient(id) {
     return this.softDelete('clients', id);
   }
 
-  // JOBS
-  async getAllJobs() {
-    return this.request(`jobs?deleted=eq.false&order=created_at.desc&select=*`);
+  async getJobs() {
+    return this.getAll('jobs');
   }
 
   async getJob(id) {
-    const result = await this.request(`jobs?id=eq.${id}&select=*,job_lines(*)`);
-    return result[0];
+    return this.getById('jobs', id);
   }
 
-  async addJob(data) {
-    const jobData = { ...data };
-    const jobLines = jobData.job_lines || [];
-    delete jobData.job_lines;
-
-    const newJob = await this.insert('jobs', jobData);
-
-    if (jobLines.length > 0) {
-        const linesToInsert = jobLines.map(line => ({ ...line, job_id: newJob[0].id }));
-        await this.insert('job_lines', linesToInsert);
-    }
-    return newJob;
-  }
-
-  async updateJob(id, data) {
-    const jobData = { ...data };
-    const jobLines = jobData.job_lines || [];
-    delete jobData.job_lines;
-
-    const updatedJob = await this.update('jobs', id, jobData);
-
-    // Clear all existing job lines and insert new ones (safer for complex updates)
-    await this.request(`job_lines?job_id=eq.${id}`, { method: 'DELETE' });
-
-    if (jobLines.length > 0) {
-        const linesToInsert = jobLines.map(line => ({ ...line, job_id: id }));
-        await this.insert('job_lines', linesToInsert);
-    }
-    return updatedJob;
+  async saveJob(job) {
+    const saved = job.id
+      ? await this.update('jobs', job.id, job)
+      : await this.create('jobs', job);
+    return saved;
   }
 
   async deleteJob(id) {
     return this.softDelete('jobs', id);
   }
 
-  // TIMESHEETS
-  async getAllTimesheets() {
-    return this.request(`timesheets?deleted=eq.false&order=date.desc&select=*`);
+  async getTimesheets() {
+    return this.getAll('timesheets');
   }
 
-  async addTimesheet(data) {
-    return this.insert('timesheets', data);
+  async getTimesheet(id) {
+    return this.getById('timesheets', id);
   }
 
-  async updateTimesheet(id, data) {
-    return this.update('timesheets', id, data);
+  async saveTimesheet(timesheet) {
+    const saved = timesheet.id
+      ? await this.update('timesheets', timesheet.id, timesheet)
+      : await this.create('timesheets', timesheet);
+    return saved;
   }
 
   async deleteTimesheet(id) {
     return this.softDelete('timesheets', id);
   }
 
-  // INVOICES
-  async getAllInvoices() {
-    return this.request(`invoices?deleted=eq.false&order=date_issued.desc&select=*`);
+  async getInvoices() {
+    return this.getAll('invoices');
   }
 
-  async addInvoice(data) {
-    return this.insert('invoices', data);
+  async getInvoice(id) {
+    return this.getById('invoices', id);
   }
 
-  async updateInvoice(id, data) {
-    return this.update('invoices', id, data);
+  async saveInvoice(invoice) {
+    if (invoice.id) {
+      const existing = await this.getInvoice(invoice.id);
+      if (existing) {
+        return this.update('invoices', invoice.id, invoice);
+      }
+    }
+    return this.create('invoices', invoice);
   }
 
   async deleteInvoice(id) {
-    return this.softDelete('invoices', id);
+    try {
+      return await this.softDelete('invoices', id);
+    } catch (e) {
+      return await this.hardDelete('invoices', id);
+    }
   }
 
   async markInvoicePaid(id) {
-    return this.update('invoices', id, { status: 'paid', updated_at: new Date().toISOString() });
+    return this.update('invoices', id, { status: 'paid' });
   }
 
-  // EXPENSES
-  async getAllExpenses() {
-    return this.request(`expenses?order=date.desc&select=*`);
+  async deleteAllUserData(userId) {
+    const tables = ['invoices','timesheets','jobs','clients','business'];
+    await Promise.all(
+      tables.map(t => this.request(`${t}?user_id=eq.${userId}`, { method: 'DELETE' }))
+    );
+    this.clearCache();
   }
 
-  async addExpense(data) {
-    return this.insert('expenses', data);
-  }
-
-  async updateExpense(id, data) {
-    return this.update('expenses', id, data);
-  }
-
-  async deleteExpense(id) {
-    return this.hardDelete('expenses', id); // Expenses typically hard deleted
-  }
-
-  // TODOS
-  async getAllTodos() {
-    return this.request(`todos?order=created_at.desc&select=*`);
-  }
-
-  async addTodo(data) {
-    return this.insert('todos', data);
-  }
-
-  async updateTodo(id, data) {
-    return this.update('todos', id, data);
-  }
-
-  async deleteTodo(id) {
-    return this.hardDelete('todos', id);
-  }
-
-  // TRASH
   async getTrash() {
     const cacheKey = this.getCacheKey('trash');
     const cached = this.getFromCache(cacheKey);
     if (cached) return cached;
 
-    // Fetch all soft-deleted items (user_id filter is enforced by the proxy)
     const [clients, jobs, timesheets, invoices] = await Promise.all([
-      this.request(`clients?deleted=eq.true&order=updated_at.desc&select=*`),
-      this.request(`jobs?deleted=eq.true&order=updated_at.desc&select=*`),
-      this.request(`timesheets?deleted=eq.true&order=updated_at.desc&select=*`),
-      this.request(`invoices?deleted=eq.true&order=updated_at.desc&select=*`)
+      this.request(`clients?user_id=eq.${this.userId}&deleted=eq.true&order=updated_at.desc&select=*`),
+      this.request(`jobs?user_id=eq.${this.userId}&deleted=eq.true&order=updated_at.desc&select=*`),
+      this.request(`timesheets?user_id=eq.${this.userId}&deleted=eq.true&order=updated_at.desc&select=*`),
+      this.request(`invoices?user_id=eq.${this.userId}&deleted=eq.true&order=updated_at.desc&select=*`)
     ]);
 
     const data = [
-      ...clients.map(c => ({ ...c, _table: 'clients' })).filter(c => c.deleted),
-      ...jobs.map(j => ({ ...j, _table: 'jobs' })).filter(j => j.deleted),
-      ...timesheets.map(t => ({ ...t, _table: 'timesheets' })).filter(t => t.deleted),
-      ...invoices.map(i => ({ ...i, _table: 'invoices' })).filter(i => i.deleted),
+      ...clients.map(c => ({ ...c, _table: 'clients' })),
+      ...jobs.map(j => ({ ...j, _table: 'jobs' })),
+      ...timesheets.map(t => ({ ...t, _table: 'timesheets' })),
+      ...invoices.map(i => ({ ...i, _table: 'invoices' }))
     ];
 
     this.setCache(cacheKey, data);
     return data;
   }
 
-  // DANGEROUS: For account deletion only
-  async deleteAllUserData() {
-    const tables = ['invoices','timesheets','jobs','clients','business', 'expenses', 'todos'];
-
-    // WARNING: This depends on RLS allowing deletion by user_id
-    await Promise.all(
-      tables.map(t => this.request(`${t}?user_id=eq.${this.userId}`, { method: 'DELETE' }))
-    );
-    this.clearCache();
+  async testConnection() {
+    try {
+      await this.request('business?limit=1');
+      return 'ok';
+    } catch {
+      return 'error';
+    }
   }
 }
 
-export const database = new Database();
+export const db = new Database();
+export const database = db;
