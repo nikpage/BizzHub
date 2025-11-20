@@ -1024,8 +1024,7 @@ function showJobForm(jobId = null) {
     // Initial calculation
     updateSummary();
 
-  // FIX: Added missing closing parenthesis here to correctly close the anonymous function passed to showModal
-  })
+  }) // <-- FIX: Correctly closing the anonymous function passed to showModal
 }
 
 
@@ -1635,7 +1634,7 @@ window.downloadInvoice = async (id) => {
         label: state.profile?.[`id_label_${i+1}`],
         number: state.profile?.[`id_number_${i+1}`]
       })).filter(e => e.label || e.number);
-  supplierIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); y += 5; });
+  supplierIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); });
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
@@ -1652,7 +1651,7 @@ window.downloadInvoice = async (id) => {
         label: client?.[`id_label_${i+1}`],
         number: client?.[`id_number_${i+1}`]
       })).filter(e => e.label || e.number);
-  clientIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); y += 5; });
+  clientIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
 
   y = Math.max(y, 95) + 10;
 
