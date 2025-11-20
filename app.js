@@ -1758,30 +1758,40 @@ window.downloadInvoice = async (id) => {
   doc.setFont(undefined, 'normal');
 
   if (meta.expenses_total > 0 || meta.deposits_total > 0) {
-    doc.text('Celkem práce / Job Total:', 120, y);
-    doc.text(`${formatCurrency(inv.subtotal || 0)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-    y += 6;
-
-    if (meta.expenses_total > 0) {
-      doc.text('Výdaje / Expenses:', 120, y);
-      doc.text(`${formatCurrency(meta.expenses_total)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-      y += 6;
+    const blockHeight = 40; // safe margin for totals + banking info
+    if (y + blockHeight > 270) {
+        doc.addPage();
+        y = 20;
     }
 
-    doc.setFont(undefined, 'bold');
-    doc.text('Celková částka / Invoice Amount:', 120, y);
-    doc.text(`${formatCurrency(meta.invoice_amount || inv.total)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-    y += 6;
-
-    if (meta.deposits_total > 0) {
-      doc.setFont(undefined, 'normal');
-      doc.text('Zálohy / Deposits:', 120, y);
-      doc.text(`-${formatCurrency(meta.deposits_total)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
-      y += 8;
-    } else {
-      y += 2;
-    }
+    const blockHeight = 40; // safe margin for totals + banking info
+  if (y + blockHeight > 270) {
+      doc.addPage();
+      y = 20;
   }
+
+  doc.text('Celkem práce / Job Total:', 120, y);
+  doc.text(`${formatCurrency(inv.subtotal || 0)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+  y += 6;
+
+  if (meta.expenses_total > 0) {
+    doc.text('Výdaje / Expenses:', 120, y);
+    doc.text(`${formatCurrency(meta.expenses_total)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+    y += 6;
+  }
+
+  doc.setFont(undefined, 'bold');
+  doc.text('Celková částka / Invoice Amount:', 120, y);
+  doc.text(`${formatCurrency(meta.invoice_amount || inv.total)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+  y += 6;
+
+  if (meta.deposits_total > 0) {
+    doc.text('Zaplaceno zálohami / Deposits:', 120, y);
+    doc.text(`-${formatCurrency(meta.deposits_total)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
+    y += 6;
+  }
+
+
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
