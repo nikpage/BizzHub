@@ -1771,6 +1771,23 @@ window.downloadInvoice = async (id) => {
   doc.save(`invoice-${inv.invoice_number || inv.id}.pdf`);
 }; // <-- FINAL CLOSING BRACE FOR window.downloadInvoice
 
+window.markInvoicePaid = async (id) => {
+  await database.saveInvoice({ id, status: 'paid' });
+  await loadData();
+  showView('dashboard');
+  showToast('Invoice marked as paid');
+};
+
+window.deleteInvoice = async (id) => {
+  if (confirm(t('confirmDelete'))) {
+    await database.deleteInvoice(id);
+    await loadData();
+    showView('dashboard');
+    showToast(t('deleteSuccess'));
+  }
+};
+
+
 window.deleteInvoice = async (id) => {
   if (confirm(t('confirmDelete'))) {
     await database.deleteInvoice(id);
