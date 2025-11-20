@@ -1778,13 +1778,11 @@ window.markInvoicePaid = async (id) => {
   showToast('Invoice marked as paid');
 };
 
-window.deleteInvoice = async (id) => {
-  if (confirm(t('confirmDelete'))) {
-    await database.deleteInvoice(id);
-    await loadData();
-    showView('dashboard');
-    showToast(t('deleteSuccess'));
-  }
+
+  await database.saveInvoice(updated);
+  await loadData();
+  showView('dashboard');
+  showToast('Invoice marked as paid');
 };
 
 
