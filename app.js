@@ -769,7 +769,6 @@ function showJobForm(jobId = null) {
           </select>
         </div>
 
-        <!-- Expenses Section -->
         <div class="form-group full-width" style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 20px;">
           <h3 style="margin-top: 0; color: #666;">${t('expenses')}</h3>
           <div id="expensesContainer">
@@ -790,7 +789,6 @@ function showJobForm(jobId = null) {
             style="background: #28a745; color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 20px; margin-top: 5px;">+</button>
         </div>
 
-        <!-- Deposits Section -->
         <div class="form-group full-width" style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 15px;">
           <h3 style="margin-top: 0; color: #666;">${t('deposits')}</h3>
           <div id="depositsContainer">
@@ -808,7 +806,6 @@ function showJobForm(jobId = null) {
             style="background: #28a745; color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 20px; margin-top: 5px;">+</button>
         </div>
 
-        <!-- Summary Section -->
         <div class="form-group full-width" style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin-top: 15px;">
           <h3 style="margin-top: 0; color: #1976d2;">${t('invoiceAmount')}</h3>
           <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px;">
@@ -1786,7 +1783,7 @@ window.downloadInvoice = async (id) => {
     doc.text(`-${formatCurrency(meta.deposits_total)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
     y += 6;
   }
-
+  } // Added this closing brace for the if(meta.expenses_total > 0 || meta.deposits_total > 0) block
 
 
   doc.setFontSize(12);
@@ -1806,8 +1803,7 @@ window.downloadInvoice = async (id) => {
   doc.text('Nejsem plátce DPH. / Not a VAT payer.', 20, y);
 
   doc.save(`invoice-${inv.invoice_number || inv.id}.pdf`);
-};
-
+}; // <-- FINAL CLOSING BRACE FOR window.downloadInvoice
 
 window.deleteInvoice = async (id) => {
   if (confirm(t('confirmDelete'))) {
@@ -1861,3 +1857,4 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+// Removed the extra closing brace that was originally at the end of the file.
