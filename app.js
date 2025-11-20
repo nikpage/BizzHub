@@ -1634,7 +1634,7 @@ window.downloadInvoice = async (id) => {
         label: state.profile?.[`id_label_${i+1}`],
         number: state.profile?.[`id_number_${i+1}`]
       })).filter(e => e.label || e.number);
-  supplierIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); });
+  supplierIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 20, y); y += 5; });
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
@@ -1651,7 +1651,7 @@ window.downloadInvoice = async (id) => {
         label: client?.[`id_label_${i+1}`],
         number: client?.[`id_number_${i+1}`]
       })).filter(e => e.label || e.number);
-  clientIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); });
+  clientIds.forEach(id => { y += 5; doc.text(`${id.label}: ${id.number}`, 110, y); y += 5; });
 
   y = Math.max(y, 95) + 10;
 
@@ -1779,13 +1779,6 @@ window.markInvoicePaid = async (id) => {
 };
 
 
-  await database.saveInvoice(updated);
-  await loadData();
-  showView('dashboard');
-  showToast('Invoice marked as paid');
-};
-
-
 window.deleteInvoice = async (id) => {
   if (confirm(t('confirmDelete'))) {
     await database.deleteInvoice(id);
@@ -1838,4 +1831,3 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
-// Removed the extra closing brace that was originally at the end of the file.
