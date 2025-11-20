@@ -1,18 +1,3 @@
-import { t, setLanguage } from './lang.js';
-import { database } from './db.js';
-
-// App State
-const state = {
-  currentView: 'dashboard',
-  currentUser: null,
-  clients: [],
-  jobs: [],
-  timesheets: [],
-  showBilledJobs: true,
-  invoices: [],
-  profile: null
-};
-
 // Utility Functions
 function formatCurrency(amount) {
   return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,42 +12,16 @@ function formatDate(dateString) {
   return `${day}.${month}.${year}`;
 }
 
+window.markInvoicePaid = async (id) => {
+  await database.saveInvoice({ id, status: 'paid' });
+  await loadData();
+  showView('dashboard');
+  showToast('Invoice marked as paid');
+};
+
 // Initialize app
 async function init() {
-  // Wait for Netlify Identity to be ready
-  return new Promise((resolve) => {
-    if (window.netlifyIdentity) {
-      window.netlifyIdentity.init();
-      window.netlifyIdentity.on('init', async (user) => {
-        if (!user) {
-          // Not logged in, redirect to landing page
-          window.location.href = '/index.html';
-          return;
-        }
-
-        state.currentUser = user;
-        database.setUser(user.id);
-        console.log('APP USER ID:', user.id);
-
-        const savedLang = localStorage.getItem('lang') || 'en';
-        document.getElementById('langSelect').value = savedLang;
-        setLanguage(savedLang);
-
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.body.dataset.theme = savedTheme;
-
-        setupEventListeners();
-        await loadData();
-
-        document.getElementById('userEmail').textContent = user.email;
-        showView('dashboard');
-
-        resolve();
-      });
-    } else {
-      // Netlify Identity not loaded, redirect to index
-      window.location.href = '/index.html';
-    }
+// ... (rest of the code)
   });
 }
 
@@ -1771,12 +1730,6 @@ window.downloadInvoice = async (id) => {
   doc.save(`invoice-${inv.invoice_number || inv.id}.pdf`);
 }; // <-- FINAL CLOSING BRACE FOR window.downloadInvoice
 
-window.markInvoicePaid = async (id) => {
-  await database.saveInvoice({ id, status: 'paid' });
-  await loadData();
-  showView('dashboard');
-  showToast('Invoice marked as paid');
-};
 
 
 window.deleteInvoice = async (id) => {
