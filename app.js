@@ -1415,7 +1415,8 @@ window.viewInvoice = async (id) => {
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>FAKTURA / INVOICE #${inv.invoice_number || inv.id}</title>
+      <title>FAKTURA / INVOICE #${inv.invoice_number || ''
+}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; padding: 50px; max-width: 900px; margin: 0 auto; color: #000; background: #fff; }
