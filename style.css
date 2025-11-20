@@ -724,3 +724,7 @@ textarea {
     font-size: 2.5rem;
   }
 }
+.keep-together {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
