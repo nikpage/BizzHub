@@ -1648,7 +1648,7 @@ window.downloadInvoice = async (id) => {
 
   doc.setLineWidth(0.5);
   doc.line(20, 62, 190, 62);
-}
+
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
