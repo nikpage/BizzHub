@@ -1166,25 +1166,8 @@ async function createInvoiceFromJob(jobId) {
     }
   });
 
-  // Generate invoice number in YYMMDD-XX format
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const datePrefix = `${yy}${mm}${dd}`;
+  const invoiceNumber = null;
 
-  database.clearCache();
-  const allInvoices = await database.getInvoices();
-  const todayInvoices = allInvoices.filter(inv => inv.invoice_number && inv.invoice_number.startsWith(datePrefix));
-  let nextIncrement = 1;
-  if (todayInvoices.length > 0) {
-    const increments = todayInvoices.map(inv => {
-      const parts = inv.invoice_number.split('-');
-      return parts.length === 2 ? parseInt(parts[1]) : 0;
-    });
-    nextIncrement = Math.max(...increments) + 1;
-  }
-  const invoiceNumber = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
 
   const invoiceId = crypto.randomUUID();
   const dueDateDays = parseInt(client.due_date_days) || 30;
@@ -1288,25 +1271,7 @@ async function generateInvoice() {
   const rate = parseFloat(client.rate || 0);
   const total = totalHours * rate;
 
-  // Generate invoice number in YYMMDD-XX format
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const datePrefix = `${yy}${mm}${dd}`;
-
-  database.clearCache();
-  const allInvoices = await database.getInvoices();
-  const todayInvoices = allInvoices.filter(inv => inv.invoice_number && inv.invoice_number.startsWith(datePrefix));
-  let nextIncrement = 1;
-  if (todayInvoices.length > 0) {
-    const increments = todayInvoices.map(inv => {
-      const parts = inv.invoice_number.split('-');
-      return parts.length === 2 ? parseInt(parts[1]) : 0;
-    });
-    nextIncrement = Math.max(...increments) + 1;
-  }
-  const invoiceNumber = `${datePrefix}-${String(nextIncrement).padStart(2, '0')}`;
+  const invoiceNumber = null;
 
   const invoiceId = crypto.randomUUID();
   const invoice = {
