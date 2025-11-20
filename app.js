@@ -1648,6 +1648,7 @@ window.downloadInvoice = async (id) => {
 
   doc.setLineWidth(0.5);
   doc.line(20, 62, 190, 62);
+}
 
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
@@ -1764,11 +1765,6 @@ window.downloadInvoice = async (id) => {
         y = 20;
     }
 
-    const blockHeight = 40; // safe margin for totals + banking info
-  if (y + blockHeight > 270) {
-      doc.addPage();
-      y = 20;
-  }
 
   doc.text('Celkem práce / Job Total:', 120, y);
   doc.text(`${formatCurrency(inv.subtotal || 0)} ${inv.currency || client?.currency || 'CZK'}`, 190, y, { align: 'right' });
