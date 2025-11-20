@@ -13,7 +13,7 @@ function formatDate(dateString) {
 }
 
 window.markInvoicePaid = async (id) => {
-  await database.updateInvoiceStatus(id, 'paid');
+  await database.markInvoicePaid(id);
   await loadData();
   showView('dashboard');
   showToast('Invoice marked as paid');
