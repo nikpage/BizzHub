@@ -1024,8 +1024,9 @@ function showJobForm(jobId = null) {
     // Initial calculation
     updateSummary();
 
-
-  }
+  // FIX: Added missing closing parenthesis here to correctly close the anonymous function passed to showModal
+  })
+}
 
 
 function showTimesheetForm(timesheetId = null) {
