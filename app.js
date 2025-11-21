@@ -22,7 +22,7 @@ window.markInvoicePaid = async (id) => {
 // Initialize app
 async function init() {
 // ... (rest of the code)
-  });
+
 }
 
 // Setup all event listeners
@@ -1375,7 +1375,7 @@ window.viewInvoice = async (id) => {
     <head>
       <meta charset="UTF-8">
       <title>FAKTURA / INVOICE #${inv.invoice_number || ''}</title>
-}</title>
+
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; padding: 50px; max-width: 900px; margin: 0 auto; color: #000; background: #fff; }
