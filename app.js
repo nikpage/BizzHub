@@ -1,4 +1,3 @@
-
 const state = {
   clients: [],
   jobs: [],
@@ -7,6 +6,12 @@ const state = {
   profile: {},
   currentView: 'dashboard'
 };
+
+// --- FIX 1: Define missing 't' function to prevent ReferenceError crash ---
+function t(key) {
+  return key; // Default fallback to prevent crash if translation is missing
+}
+// -----------------------------------------------------------------------
 
 // Utility Functions
 function formatCurrency(amount) {
@@ -1372,6 +1377,12 @@ window.viewInvoice = async (id) => {
   const inv = state.invoices.find(i => i.id === id);
   if (!inv) return;
 
+  // --- FIX 2: Move variable declarations inside the function scope to prevent ReferenceError ---
+  const client = state.clients.find(c => c.id === inv.client_id);
+  const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
+  const meta = typeof inv.meta === 'string' ? JSON.parse(inv.meta || '{}') : (inv.meta || {});
+  // --------------------------------------------------------------------------------------------
+
 
   const win = window.open('', '_blank');
   win.document.write(`
@@ -1550,17 +1561,9 @@ window.viewInvoice = async (id) => {
 
 window.downloadInvoice = (id) => {
   window.viewInvoice(id);
+  setTimeout(() => window.print(), 300);
 };
 
-
-  const client = state.clients.find(c => c.id === inv.client_id);
-  const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
-  const meta = typeof inv.meta === 'string' ? JSON.parse(inv.meta || '{}') : (inv.meta || {});
-
-  window.downloadInvoice = (id) => {
-    window.viewInvoice(id);
-    setTimeout(() => window.print(), 300);
-  };
 
 window.deleteInvoice = async (id) => {
   if (confirm(t('confirmDelete'))) {
