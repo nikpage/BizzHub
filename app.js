@@ -982,8 +982,6 @@ function showJobForm(jobId = null) {
 
     // Initial calculation
     updateSummary();
-
-  }) // <-- FIX: Correctly closing the anonymous function passed to showModal
 }
 
 
