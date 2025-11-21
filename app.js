@@ -1543,9 +1543,10 @@ window.viewInvoice = async (id) => {
 };
 
 
-window.downloadInvoice = async (id) => {
-  const inv = state.invoices.find(i => i.id === id);
-  if (!inv) return;
+window.downloadInvoice = (id) => {
+  window.viewInvoice(id);
+};
+
 
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
