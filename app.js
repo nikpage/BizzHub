@@ -1730,7 +1730,6 @@ doc.text(`${formatCurrency(item.amount || (item.hours * item.rate) || 0)} ${inv.
   doc.text('Nejsem plátce DPH. / Not a VAT payer.', 20, y);
 
   doc.save(`invoice-${inv.invoice_number || inv.id}.pdf`);
-}; // <-- FINAL CLOSING BRACE FOR window.downloadInvoice
 
 
 
