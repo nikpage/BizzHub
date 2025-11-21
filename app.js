@@ -1677,7 +1677,8 @@ window.downloadInvoice = (id) => {
 
     doc.text(descLines, 20, y);
 doc.text(item.hours !== null && item.hours !== undefined ? item.hours.toFixed(2) : '-', 110, y, { align: 'right' });
-doc.text(item.rate !== null && item.rate !== undefined ? `${formatCurrency(item.rate)} ${inv.currency || client?.currency || 'CZK'}` : '-', 140, y, { align: 'right' });
+doc.text(item.rate !== null && item.rate !== undefined ? `${formatCurrency(item.rate)} ${client?.currency || 'CZK'}
+` : '-', 140, y, { align: 'right' });
 doc.text(`${formatCurrency(item.amount || (item.hours * item.rate) || 0)} ${inv.currency || client?.currency || 'CZK'}`, 170, y, { align: 'right' });
 
     y += Math.max(7, descLines.length * 5);
