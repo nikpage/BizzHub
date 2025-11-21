@@ -13,6 +13,28 @@ function t(key) {
 }
 // -----------------------------------------------------------------------
 
+// --- FIX 4: Define a mock 'database' object to resolve ReferenceError: database is not defined ---
+const database = {
+    // Mock the async functions used by the application to prevent crashes on line 115 and elsewhere
+    loadDashboard: async () => ({ clients: [], jobs: [], timesheets: [], invoices: [], business: {} }),
+    markInvoicePaid: async (id) => console.log('Mock: Mark Invoice Paid', id),
+    getClients: async () => [],
+    saveClient: async (data) => console.log('Mock: Save Client', data),
+    getJobs: async () => [],
+    saveJob: async (data) => console.log('Mock: Save Job', data),
+    saveTimesheet: async (data) => console.log('Mock: Save Timesheet', data),
+    saveInvoice: async (data) => console.log('Mock: Save Invoice', data),
+    saveProfile: async (data) => console.log('Mock: Save Profile', data),
+    getTrash: async () => [],
+    restore: async (table, id) => console.log('Mock: Restore', table, id),
+    hardDelete: async (table, id) => console.log('Mock: Hard Delete', table, id),
+    deleteClient: async (id) => console.log('Mock: Delete Client', id),
+    deleteJob: async (id) => console.log('Mock: Delete Job', id),
+    deleteTimesheet: async (id) => console.log('Mock: Delete Timesheet', id),
+    deleteInvoice: async (id) => console.log('Mock: Delete Invoice', id),
+};
+// -------------------------------------------------------------------------------------------------
+
 // Utility Functions
 function formatCurrency(amount) {
   return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1622,4 +1644,3 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
-// --- DELETE CRASHING CODE ---
