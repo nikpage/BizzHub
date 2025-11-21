@@ -1374,7 +1374,7 @@ window.viewInvoice = async (id) => {
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>FAKTURA / INVOICE #${inv.invoice_number || ''
+      <title>FAKTURA / INVOICE #${inv.invoice_number || ''}</title>
 }</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1551,8 +1551,11 @@ window.downloadInvoice = (id) => {
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
   const meta = typeof inv.meta === 'string' ? JSON.parse(inv.meta || '{}') : (inv.meta || {});
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ putOnlyUsedFonts: true, compress: true, orientation: 'p', unit: 'mm', format: 'a4' });
+
+  window.downloadInvoice = (id) => {
+    window.viewInvoice(id);
+    setTimeout(() => window.print(), 300);
+  };
 
   // Set font that supports Czech characters
   doc.setFont('Helvetica', 'normal');
