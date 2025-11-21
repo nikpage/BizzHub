@@ -38,6 +38,11 @@ window.markInvoicePaid = async (id) => {
 async function init() {
 // ... (rest of the code)
 
+  // --- FIX 3: Restore missing initialization calls to load content ---
+  setupEventListeners();
+  await loadData();
+  showView('dashboard');
+  // -----------------------------------------------------------------
 }
 
 // Setup all event listeners
@@ -1617,3 +1622,4 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+// --- DELETE CRASHING CODE ---
