@@ -1,3 +1,13 @@
+
+const state = {
+  clients: [],
+  jobs: [],
+  timesheets: [],
+  invoices: [],
+  profile: {},
+  currentView: 'dashboard'
+};
+
 // Utility Functions
 function formatCurrency(amount) {
   return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
