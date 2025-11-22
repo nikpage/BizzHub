@@ -25,6 +25,34 @@ function formatDate(dateString) {
   return `${day}.${month}.${year}`;
 }
 
+// Custom confirmation modal function to replace native confirm()
+function showConfirmModal(title, message, onConfirm) {
+  const modal = `
+    <div class="modal-overlay" id="confirmModalOverlay">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title">${title}</h2>
+          <button class="modal-close" onclick="window.closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <p>${message}</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="window.closeModal()">${t('cancel')}</button>
+          <button class="btn-danger" id="modalConfirm">${title.includes(t('forever')) ? t('deleteForever') : t('delete')}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modalContainer').innerHTML = modal;
+
+  document.getElementById('modalConfirm').addEventListener('click', async () => {
+    await onConfirm();
+    window.closeModal();
+  });
+}
+
 window.markInvoicePaid = async (id) => {
   await database.markInvoicePaid(id);
   await loadData();
@@ -1035,6 +1063,7 @@ function showTimesheetForm(timesheetId = null) {
           <input type="number" name="rate" value="${ts.rate || ''}" step="0.01">
         </div>
 
+        <div class="form-group">
           <label>${t('currency')}</label>
           <select name="currency">
             ${(() => {
@@ -1320,56 +1349,74 @@ async function restoreData(file) {
   const reader = new FileReader();
   reader.onload = async (e) => {
     const b = JSON.parse(e.target.result);
-    if (!confirm('Replace everything?')) return;
-    const u = state.currentUser.id;
 
-    // 1. profile
-    if (b.profile) await database.saveProfile({...b.profile, user_id: u});
-    // 2. clients
-    for (const c of b.clients) await database.saveClient({...c, user_id: u});
-    // 3. jobs
-    for (const j of b.jobs)       await database.saveJob({...j, user_id: u});
-    // 4. timesheets
-    for (const t of b.timesheets) await database.saveTimesheet({...t, user_id: u});
-    // 5. invoices
-    for (const i of b.invoices)   await database.saveInvoice({...i, user_id: u});
+    showConfirmModal(
+      t('restoreData'),
+      t('confirmRestore'),
+      async () => {
+        const u = state.currentUser?.id || crypto.randomUUID(); // Use ID if available
+        // 1. profile
+        if (b.profile) await database.saveProfile({...b.profile, user_id: u});
+        // 2. clients
+        for (const c of b.clients) await database.saveClient({...c, user_id: u});
+        // 3. jobs
+        for (const j of b.jobs)       await database.saveJob({...j, user_id: u});
+        // 4. timesheets
+        for (const t of b.timesheets) await database.saveTimesheet({...t, user_id: u});
+        // 5. invoices
+        for (const i of b.invoices)   await database.saveInvoice({...i, user_id: u});
 
-    await loadData();
-    showView('dashboard');
-    showToast('Restored');
+        await loadData();
+        showView('dashboard');
+        showToast(t('restored'));
+      }
+    );
   };
+  reader.readAsText(file);
 }
 
 
 window.editClient = (id) => showClientForm(id);
 window.deleteClient = async (id) => {
-  if (confirm(t('confirmDelete'))) {
-    await database.deleteClient(id);
-    await loadData();
-    showView('clients');
-    showToast(t('deleteSuccess'));
-  }
+  showConfirmModal(
+    t('deleteClient'),
+    t('confirmDelete'),
+    async () => {
+      await database.deleteClient(id);
+      await loadData();
+      showView('clients');
+      showToast(t('deleteSuccess'));
+    }
+  );
 };
 
 window.editJob = (id) => showJobForm(id);
 window.createInvoiceFromJob = createInvoiceFromJob;
 window.deleteJob = async (id) => {
-  if (confirm(t('confirmDelete'))) {
-    await database.deleteJob(id);
-    await loadData();
-    showView('jobs');
-    showToast(t('deleteSuccess'));
-  }
+  showConfirmModal(
+    t('deleteJob'),
+    t('confirmDelete'),
+    async () => {
+      await database.deleteJob(id);
+      await loadData();
+      showView('jobs');
+      showToast(t('deleteSuccess'));
+    }
+  );
 };
 
 window.editTimesheet = (id) => showTimesheetForm(id);
 window.deleteTimesheet = async (id) => {
-  if (confirm(t('confirmDelete'))) {
-    await database.deleteTimesheet(id);
-    await loadData();
-    showView('worklogs');
-    showToast(t('deleteSuccess'));
-  }
+  showConfirmModal(
+    t('deleteLog'),
+    t('confirmDelete'),
+    async () => {
+      await database.deleteTimesheet(id);
+      await loadData();
+      showView('worklogs');
+      showToast(t('deleteSuccess'));
+    }
+  );
 };
 
 // Replace the two functions `window.viewInvoice` and `window.downloadInvoice` in app.js
@@ -1567,28 +1614,42 @@ window.downloadInvoice = (id) => {
 
 
 window.deleteInvoice = async (id) => {
-  if (confirm(t('confirmDelete'))) {
-    await database.deleteInvoice(id);
-    await loadData();
-    showView('dashboard');
-    showToast(t('deleteSuccess'));
-  }
+  showConfirmModal(
+    t('deleteInvoice'),
+    t('confirmDelete'),
+    async () => {
+      await database.deleteInvoice(id);
+      await loadData();
+      showView('dashboard');
+      showToast(t('deleteSuccess'));
+    }
+  );
 };
 
 window.restoreItem = async (table, id) => {
-  await database.restore(table, id);
-  await loadData();
-  showView('trash');
-  showToast(t('restoreSuccess'));
+  showConfirmModal(
+    t('restoreItem'),
+    t('confirmRestore'),
+    async () => {
+      await database.restore(table, id);
+      await loadData();
+      showView('trash');
+      showToast(t('restoreSuccess'));
+    }
+  );
 };
 
 window.deleteForever = async (table, id) => {
-  if (confirm(t('confirmDeleteForever'))) {
-    await database.hardDelete(table, id);
-    await loadData();
-    showView('trash');
-    showToast(t('deleteSuccess'));
-  }
+  showConfirmModal(
+    t('deleteForever'),
+    t('confirmDeleteForever'),
+    async () => {
+      await database.hardDelete(table, id);
+      await loadData();
+      showView('trash');
+      showToast(t('deleteSuccess'));
+    }
+  );
 };
 
 // Utility Functions
