@@ -7,11 +7,8 @@ const state = {
   currentView: 'dashboard'
 };
 
-// --- CRITICAL FIX: Import the required 'database' object from db.js ---
 import { database } from './db.js';
-// --- CRITICAL FIX: Import the required 't' and 'setLanguage' functions from lang.js ---
 import { t, setLanguage } from './lang.js';
-// -----------------------------------------------------------------------------------
 
 
 // Utility Functions
@@ -37,13 +34,9 @@ window.markInvoicePaid = async (id) => {
 
 // Initialize app
 async function init() {
-// ... (rest of the code)
-
-  // --- FIX 3: Restore missing initialization calls to load content ---
   setupEventListeners();
   await loadData();
   showView('dashboard');
-  // -----------------------------------------------------------------
 }
 
 // Setup all event listeners
@@ -1042,7 +1035,6 @@ function showTimesheetForm(timesheetId = null) {
           <input type="number" name="rate" value="${ts.rate || ''}" step="0.01">
         </div>
 
-        <div class="form-group">
           <label>${t('currency')}</label>
           <select name="currency">
             ${(() => {
@@ -1144,14 +1136,14 @@ async function createInvoiceFromJob(jobId) {
     }
   });
 
-  const invoiceNumber = null;
+  const invoiceNumber = null; // Placeholder: DB will assign the actual number on insert.
 
 
   const invoiceId = crypto.randomUUID();
   const dueDateDays = parseInt(client.due_date_days) || 30;
   const invoiceData = {
     id: invoiceId,
-    invoice_number: invoiceNumber,
+    invoice_number: invoiceNumber, // Sending null/blank, DB uses its sequence
     client_id: job.client_id,
     job_id: job.id,
     items: JSON.stringify(items),
@@ -1175,11 +1167,13 @@ async function createInvoiceFromJob(jobId) {
   };
 
   try {
-    await database.saveInvoice(invoiceData);
+    // Capture the returned invoice object which contains the database-assigned invoice_number
+    const savedInvoice = await database.saveInvoice(invoiceData);
     await database.saveJob({ ...job, billed: true });
     await loadData();
     showView('dashboard');
-    showToast('Invoice created successfully');
+    // Use the actual invoice number from the database in the success message
+    showToast(`Invoice ${savedInvoice.invoice_number} created successfully`);
   } catch (err) {
     console.error('Failed to create invoice:', err);
     showToast('Failed to create invoice', 'error');
@@ -1249,12 +1243,12 @@ async function generateInvoice() {
   const rate = parseFloat(client.rate || 0);
   const total = totalHours * rate;
 
-  const invoiceNumber = null;
+  const invoiceNumber = null; // Placeholder: DB will assign the actual number on insert.
 
   const invoiceId = crypto.randomUUID();
   const invoice = {
     id: invoiceId,
-    invoice_number: invoiceNumber,
+    invoice_number: invoiceNumber, // Sending null/blank, DB uses its sequence
     client_id: clientId,
     items: JSON.stringify(timesheets.map(ts => ({
       date: ts.date,
@@ -1270,10 +1264,12 @@ async function generateInvoice() {
     meta: JSON.stringify({ month })
   };
 
-  await database.saveInvoice(invoice);
+  // Capture the returned invoice object which contains the database-assigned invoice_number
+  const savedInvoice = await database.saveInvoice(invoice);
   await loadData();
   showView('dashboard');
-  showToast(t('saveSuccess'));
+  // Use the actual invoice number from the database in the success message
+  showToast(`Invoice ${savedInvoice.invoice_number} created successfully`);
 }
 
 
@@ -1383,11 +1379,10 @@ window.viewInvoice = async (id) => {
   const inv = state.invoices.find(i => i.id === id);
   if (!inv) return;
 
-  // --- FIX 2: Move variable declarations inside the function scope to prevent ReferenceError ---
+  // Fix: Move variable declarations inside the function scope to prevent ReferenceError
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
   const meta = typeof inv.meta === 'string' ? JSON.parse(inv.meta || '{}') : (inv.meta || {});
-  // --------------------------------------------------------------------------------------------
 
 
   const win = window.open('', '_blank');
