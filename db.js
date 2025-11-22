@@ -128,7 +128,7 @@ class Database {
         { key: 'clients', endpoint: `clients?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
         { key: 'jobs', endpoint: `jobs?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
         { key: 'timesheets', endpoint: `timesheets?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
-        { key: 'invoices', endpoint: `invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
+        { key: 'invoices', endpoint: `invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=invoice_number,id,client_id,total,status,created_at,due_date` },
         { key: 'business', endpoint: `business?user_id=eq.${this.userId}&select=*` }
       ];
 
@@ -142,7 +142,7 @@ class Database {
         this.request(`clients?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
         this.request(`jobs?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
         this.request(`timesheets?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
-        this.request(`invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
+        this.request(`invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=invoice_number,id,client_id,total,status,created_at,due_date`),
         this.request(`business?user_id=eq.${this.userId}&select=*`)
       ]);
 
@@ -150,6 +150,44 @@ class Database {
       this.setCache(cacheKey, results);
       return results;
     }
+  }
+
+  // NEW FUNCTION: Get the highest existing invoice number to ensure we assign a sequential number
+  async getNextInvoiceNumber() {
+    const today = new Date();
+    const yy = today.getFullYear().toString().slice(-2);
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayPrefix = `${yy}${mm}${dd}`; // e.g., 251122
+
+    // Fetch the highest current invoice number for today's date prefix.
+    try {
+      // Search for invoices that start with today's date prefix
+      // Use 'like' query filter for partial string matching
+      const data = await this.request(
+        `invoices?user_id=eq.${this.userId}&deleted=eq.false&invoice_number=like.${todayPrefix}-*&order=invoice_number.desc&limit=1&select=invoice_number`
+      );
+
+      if (data && data.length > 0 && data[0].invoice_number) {
+        const lastNumber = data[0].invoice_number.toString();
+        // Extract the sequential part (e.g., '01' from '251122-01')
+        const parts = lastNumber.split('-');
+
+        if (parts.length === 2 && parts[0] === todayPrefix) {
+          const numPart = parseInt(parts[1], 10);
+          const nextNum = numPart + 1;
+          const padding = parts[1].length;
+          const nextNumStr = String(nextNum).padStart(padding, '0');
+
+          return `${todayPrefix}-${nextNumStr}`; // e.g., 251122-02
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch next invoice number, falling back to default.", e);
+    }
+
+    // Default starting number for today if none exist (or if the date changed)
+    return `${todayPrefix}-01`;
   }
 
   async getAll(table) {
@@ -301,6 +339,11 @@ class Database {
   }
 
   async saveInvoice(invoice) {
+    // Check if we need to retrieve the next invoice number *before* creating the record
+    if (!invoice.invoice_number) {
+        invoice.invoice_number = await this.getNextInvoiceNumber();
+    }
+
     // Always check database first before deciding update vs create
     const existing = invoice.id ? await this.getInvoice(invoice.id) : null;
     if (existing) {
