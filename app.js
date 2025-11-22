@@ -1421,14 +1421,11 @@ window.deleteTimesheet = async (id) => {
   );
 };
 
-// Replace the two functions `window.viewInvoice` and `window.downloadInvoice` in app.js
-// This version forces a bilingual template: Czech first, English second. Layout and logic unchanged.
-
+// FIX: Modified window.viewInvoice to return the new window object, and window.downloadInvoice to use it.
 window.viewInvoice = async (id) => {
   const inv = state.invoices.find(i => i.id === id);
   if (!inv) return;
 
-  // Fix: Move variable declarations inside the function scope to prevent ReferenceError
   const client = state.clients.find(c => c.id === inv.client_id);
   const items = typeof inv.items === 'string' ? JSON.parse(inv.items || '[]') : (inv.items || []);
   const meta = typeof inv.meta === 'string' ? JSON.parse(inv.meta || '{}') : (inv.meta || {});
@@ -1606,12 +1603,22 @@ window.viewInvoice = async (id) => {
     </html>
   `);
   win.document.close();
+  // Return the new window object so downloadInvoice can print to it.
+  return win;
 };
 
 
-window.downloadInvoice = (id) => {
-  window.viewInvoice(id);
-  setTimeout(() => window.print(), 300);
+window.downloadInvoice = async (id) => {
+  // Call viewInvoice to open the new window, and capture the window object
+  const win = await window.viewInvoice(id);
+
+  // Wait for a short moment (300ms) to ensure content is rendered in the new window
+  // Then call print() on the new window object instead of the main window.
+  setTimeout(() => {
+    if (win) {
+      win.print();
+    }
+  }, 300);
 };
 
 
