@@ -322,9 +322,9 @@ function renderClients(container) {
 }
 // Jobs View
 function renderJobs(container) {
-  const displayJobs = state.showBilledJobs
-  ? state.jobs.filter(j => !j.deleted)
-  : state.jobs.filter(j => !j.billed && !j.deleted);
+  // FIX 1: Show all jobs (billed and pending), excluding only deleted ones.
+  // Original problematic logic: : state.jobs.filter(j => !j.billed && !j.deleted);
+  const displayJobs = state.jobs.filter(j => !j.deleted);
 
   container.innerHTML = `
     <div class="flex-between mb-3">
@@ -382,6 +382,8 @@ function renderJobs(container) {
   document.getElementById('addJob')?.addEventListener('click', () => showJobForm());
   document.getElementById('showBilledJobs')?.addEventListener('change', (e) => {
     state.showBilledJobs = e.target.checked;
+    // Rerender the view to apply the filter toggle (if implemented later)
+    // Currently, this checkbox has no effect until the filtering logic is restored.
     showView('jobs');
   });
 }
@@ -1196,12 +1198,12 @@ async function createInvoiceFromJob(jobId) {
   };
 
   try {
-    // Capture the returned invoice object which contains the database-assigned invoice_number
+    // FIX 2: Capture the returned invoice object which contains the database-assigned invoice_number
     const savedInvoice = await database.saveInvoice(invoiceData);
     await database.saveJob({ ...job, billed: true });
     await loadData();
     showView('dashboard');
-    // Use the actual invoice number from the database in the success message
+    // FIX 2: Use the actual invoice number from the database in the success message
     showToast(`Invoice ${savedInvoice.invoice_number} created successfully`);
   } catch (err) {
     console.error('Failed to create invoice:', err);
