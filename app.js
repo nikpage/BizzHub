@@ -257,7 +257,7 @@ function renderDashboard(container) {
               <td>
                 <button class="action-btn" onclick="window.viewInvoice('${inv.id}')" title="${t('viewPdf')}">👁️</button>
                 <button class="action-btn" onclick="window.downloadInvoice('${inv.id}')" title="${t('downloadPdf')}">⬇️</button>
-                <button class="action-btn" onclick="window.markInvoicePaid('${inv.id}')" title="${t('markPaid')}">✓</button>
+                <button class="action-btn mark-paid-btn" data-id="${inv.id}" title="${t('markPaid')}">✓</button>
                 <button class="action-btn" onclick="window.deleteInvoice('${inv.id}')" title="${t('delete')}">🗑️</button>
               </td>
             </tr>
@@ -270,6 +270,26 @@ function renderDashboard(container) {
 
   document.getElementById('exportCsv')?.addEventListener('click', () => exportLedger('csv'));
   document.getElementById('exportXlsx')?.addEventListener('click', () => exportLedger('xlsx'));
+
+  document.querySelectorAll('.mark-paid-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      const invoice = state.invoices.find(inv => inv.id === id);
+      if (!invoice) return;
+
+      const newStatus = invoice.status === 'paid' ? 'unpaid' : 'paid';
+
+      try {
+        await database.update('invoices', id, { status: newStatus });
+        await loadData();
+        showView('dashboard');
+        showToast(t('saveSuccess'));
+      } catch (err) {
+        console.error(err);
+        showToast(t('error'), 'error');
+      }
+    });
+  });
 }
 
 // Clients View
