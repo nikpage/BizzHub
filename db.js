@@ -1,3 +1,5 @@
+// db.js
+
 // Supabase Database Adapter for BizzHub - OPTIMIZED
 
 class Database {
@@ -128,7 +130,10 @@ class Database {
         { key: 'clients', endpoint: `clients?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
         { key: 'jobs', endpoint: `jobs?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
         { key: 'timesheets', endpoint: `timesheets?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*` },
-        { key: 'invoices', endpoint: `invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=invoice_number,id,client_id,total,status,created_at,due_date` },
+
+        // FIX: include items/meta/subtotal/currency/job_id so invoice PDF has line items + job details
+        { key: 'invoices', endpoint: `invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=invoice_number,id,client_id,job_id,subtotal,total,currency,status,created_at,due_date,items,meta` },
+
         { key: 'business', endpoint: `business?user_id=eq.${this.userId}&select=*` }
       ];
 
@@ -142,7 +147,10 @@ class Database {
         this.request(`clients?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
         this.request(`jobs?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
         this.request(`timesheets?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=*`),
-        this.request(`invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=invoice_number,id,client_id,total,status,created_at,due_date`),
+
+        // FIX: include items/meta/subtotal/currency/job_id so invoice PDF has line items + job details
+        this.request(`invoices?user_id=eq.${this.userId}&deleted=eq.false&order=created_at.desc&select=invoice_number,id,client_id,job_id,subtotal,total,currency,status,created_at,due_date,items,meta`),
+
         this.request(`business?user_id=eq.${this.userId}&select=*`)
       ]);
 
