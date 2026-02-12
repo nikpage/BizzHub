@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Pick output folder
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -d ".vercel/output/static" ]; then
+            echo "OUT_DIR=.vercel/output/static" >> "$GITHUB_ENV"
+          elif [ -d "out" ]; then
+            echo "OUT_DIR=out" >> "$GITHUB_ENV"
+          elif [ -d "dist" ]; then
+            echo "OUT_DIR=dist" >> "$GITHUB_ENV"
+          elif [ -d "build" ]; then
+            echo "OUT_DIR=build" >> "$GITHUB_ENV"
+          elif [ -d "public" ]; then
+            echo "OUT_DIR=public" >> "$GITHUB_ENV"
+          else
+            echo "No known build output folder found." >&2
+            echo "Checked: .vercel/output/static, out, dist, build, public" >&2
+            exit 1
+          fi
+
+          echo "Using OUT_DIR=$OUT_DIR"
+
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler pages deploy "$OUT_DIR" --project-name=bizzhub
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: e5fed93c1be76f98217757a48562b6e2
