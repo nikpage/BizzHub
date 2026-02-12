@@ -1,65 +1,68 @@
-// netlify/functions/db-batch.js
-// Batch multiple Supabase requests into one function call
+// functions/db-batch.js
+// Batch multiple Supabase requests into one function call (Cloudflare Pages version)
 
-exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
+export async function onRequestPost(context) {
+  const { request, env } = context;
 
   try {
     // SECURITY: Verify authentication
-    const authHeader = event.headers?.authorization || event.headers?.Authorization;
+    const authHeader = request.headers.get('Authorization') || request.headers.get('authorization');
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return {
-        statusCode: 401,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Not authenticated' })
-      };
+      return new Response(JSON.stringify({ error: 'Not authenticated' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const token = authHeader.replace('Bearer ', '');
     let authenticatedUserId;
 
     try {
-      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      // JWT DECODING (Web Standard replacement for Buffer)
+      // Base64Url to Base64
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      // Decode
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+
+      const payload = JSON.parse(jsonPayload);
       authenticatedUserId = payload.sub;
     } catch (e) {
-      return {
-        statusCode: 401,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Invalid token' })
-      };
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     if (!authenticatedUserId) {
-      return {
-        statusCode: 401,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'No user ID in token' })
-      };
+      return new Response(JSON.stringify({ error: 'No user ID in token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    // Get Supabase config
-    const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+    // Get Supabase config from Env
+    const SUPABASE_URL = env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL;
+    const SUPABASE_KEY = env.SUPABASE_KEY || env.SUPABASE_ANON_KEY;
 
     if (!SUPABASE_URL || !SUPABASE_KEY) {
-      return {
-        statusCode: 502,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'server_configuration_missing' })
-      };
+      return new Response(JSON.stringify({ error: 'server_configuration_missing' }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    const { requests } = JSON.parse(event.body || '{}');
+    const bodyText = await request.text();
+    const { requests } = JSON.parse(bodyText || '{}');
 
     if (!Array.isArray(requests)) {
-      return {
-        statusCode: 400,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'requests must be an array' })
-      };
+      return new Response(JSON.stringify({ error: 'requests must be an array' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // Execute all requests in parallel
@@ -104,16 +107,15 @@ exports.handler = async (event) => {
       }
     });
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(response)
-    };
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
   } catch (error) {
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'function_error', message: error.message })
-    };
+    return new Response(JSON.stringify({ error: 'function_error', message: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
-};
+}

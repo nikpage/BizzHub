@@ -62,7 +62,8 @@ class Database {
         }
       }
 
-      res = await fetch(`${baseUrl}/.netlify/functions/db-proxy`, {
+      // CLOUDFLARE UPDATE: Point to /db-proxy instead of .netlify/functions/db-proxy
+      res = await fetch(`${baseUrl}/db-proxy`, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
@@ -73,7 +74,7 @@ class Database {
       });
     } catch (err) {
       console.error('[DB] NETWORK ERROR', err);
-      throw new Error('Network connection lost or Netlify function unreachable.');
+      throw new Error('Network connection lost or function unreachable.');
     }
 
     const text = await res.text();
@@ -105,7 +106,8 @@ class Database {
       }
     }
 
-    const res = await fetch(`${baseUrl}/.netlify/functions/db-batch`, {
+    // CLOUDFLARE UPDATE: Point to /db-batch instead of .netlify/functions/db-batch
+    const res = await fetch(`${baseUrl}/db-batch`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({ requests })

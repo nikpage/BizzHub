@@ -1,66 +1,49 @@
-// netlify/functions/db-proxy.js
-// Robust Netlify function proxy to Supabase — tries multiple env names and a local secrets file
-const fs = require('fs');
-const path = require('path');
+// functions/db-proxy.js
+// Robust Cloudflare function proxy to Supabase
 
-const tryLoadLocalSecrets = () => {
-  try {
-    // optional: a file placed in the functions folder at deploy time (not committed publicly)
-    const p = path.join(__dirname, 'supabase.secrets.json');
-    if (fs.existsSync(p)) {
-      const raw = fs.readFileSync(p, 'utf8');
-      const j = JSON.parse(raw);
-      return {
-        url: j.SUPABASE_URL || j.url || null,
-        key: j.SUPABASE_KEY || j.key || null
-      };
-    }
-  } catch (e) { /* ignore */ }
-  return { url: null, key: null };
-};
-
-exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
+export async function onRequestPost(context) {
+  const { request, env } = context;
 
   try {
-    // SECURITY: Verify user is authenticated via Netlify Identity
-    // Get JWT token from Authorization header
-    const authHeader = event.headers?.authorization || event.headers?.Authorization;
+    // SECURITY: Verify user is authenticated via Netlify Identity (or compatible JWT)
+    const authHeader = request.headers.get('Authorization') || request.headers.get('authorization');
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return {
-        statusCode: 401,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Not authenticated - no token provided' })
-      };
+      return new Response(JSON.stringify({ error: 'Not authenticated - no token provided' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const token = authHeader.replace('Bearer ', '');
-
-    // Decode JWT to get user ID (simple decode, not verification since we trust Netlify)
     let authenticatedUserId;
+
     try {
-      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      // JWT DECODING (Web Standard replacement for Buffer)
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+
+      const payload = JSON.parse(jsonPayload);
       authenticatedUserId = payload.sub;
     } catch (e) {
-      return {
-        statusCode: 401,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Invalid token' })
-      };
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     if (!authenticatedUserId) {
-      return {
-        statusCode: 401,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'No user ID in token' })
-      };
+      return new Response(JSON.stringify({ error: 'No user ID in token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    const { method, endpoint, body } = JSON.parse(event.body || '{}');
+    const bodyText = await request.text();
+    const { method, endpoint, body } = JSON.parse(bodyText || '{}');
 
     // SECURITY: Force all requests to use the authenticated user's ID
     let safeEndpoint = endpoint;
@@ -80,31 +63,21 @@ exports.handler = async (event) => {
     }
 
     // Try primary env names first
-    let SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL_PUBLIC || null;
-    let SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || null;
+    let SUPABASE_URL = env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || env.SUPABASE_URL_PUBLIC || null;
+    let SUPABASE_KEY = env.SUPABASE_KEY || env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY || null;
 
-    // Try alternate envs (in case different naming was used)
-    if (!SUPABASE_URL) SUPABASE_URL = process.env.SUPABASE_URL_VALUE || null;
-    if (!SUPABASE_KEY) SUPABASE_KEY = process.env.SUPABASE_KEY_VALUE || null;
+    // Try alternate envs
+    if (!SUPABASE_URL) SUPABASE_URL = env.SUPABASE_URL_VALUE || null;
+    if (!SUPABASE_KEY) SUPABASE_KEY = env.SUPABASE_KEY_VALUE || null;
 
-    // Try local secrets file (optional, for private deploy workflows)
     if (!SUPABASE_URL || !SUPABASE_KEY) {
-      const local = tryLoadLocalSecrets();
-      SUPABASE_URL = SUPABASE_URL || local.url;
-      SUPABASE_KEY = SUPABASE_KEY || local.key;
-    }
-
-    // Final check — do NOT leak keys in the response
-    if (!SUPABASE_URL || !SUPABASE_KEY) {
-      // return structured error that client can handle, without exposing secrets
-      return {
-        statusCode: 502,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          error: 'server_configuration_missing',
-          message: 'Supabase configuration not available in function runtime. Ensure SUPABASE_URL and SUPABASE_KEY are defined in your Netlify Site > Site settings > Environment variables (and redeploy).'
-        })
-      };
+      return new Response(JSON.stringify({
+        error: 'server_configuration_missing',
+        message: 'Supabase configuration not available in function runtime.'
+      }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/${safeEndpoint}`;
@@ -122,16 +95,15 @@ exports.handler = async (event) => {
 
     const data = await res.text();
 
-    return {
-      statusCode: res.status,
-      headers: { 'Content-Type': 'application/json' },
-      body: data
-    };
+    return new Response(data, {
+      status: res.status,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
   } catch (error) {
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'function_error', message: error.message })
-    };
+    return new Response(JSON.stringify({ error: 'function_error', message: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
-};
+}
