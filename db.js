@@ -1,5 +1,8 @@
 // db.js
 
+const BASE_URL = "https://microhub42.netlify.app/.netlify/functions/db-proxy";
+
+
 // Supabase Database Adapter for BizzHub - OPTIMIZED
 
 class Database {
