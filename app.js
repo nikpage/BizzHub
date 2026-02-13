@@ -63,6 +63,17 @@ window.markInvoicePaid = async (id) => {
 // Initialize app
 async function init() {
   setupEventListeners();
+
+  // Set authenticated user on database before loading data
+  if (window.netlifyIdentity) {
+    const user = window.netlifyIdentity.currentUser();
+    if (user) {
+      database.setUser(user.id);
+      const emailEl = document.getElementById('userEmail');
+      if (emailEl) emailEl.textContent = user.email;
+    }
+  }
+
   await loadData();
   showView('dashboard');
 }

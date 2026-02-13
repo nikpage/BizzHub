@@ -1,8 +1,5 @@
 // db.js
 
-const BASE_URL = "https://microhub42.netlify.app/.netlify/functions/db-proxy";
-
-
 // Supabase Database Adapter for BizzHub - OPTIMIZED
 
 class Database {
@@ -65,8 +62,7 @@ class Database {
         }
       }
 
-      // CLOUDFLARE UPDATE: Point to /db-proxy instead of .netlify/functions/db-proxy
-      res = await fetch(`${baseUrl}/db-proxy`, {
+      res = await fetch(`${baseUrl}/.netlify/functions/db-proxy`, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify({
@@ -109,8 +105,7 @@ class Database {
       }
     }
 
-    // CLOUDFLARE UPDATE: Point to /db-batch instead of .netlify/functions/db-batch
-    const res = await fetch(`${baseUrl}/db-batch`, {
+    const res = await fetch(`${baseUrl}/.netlify/functions/db-batch`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({ requests })
