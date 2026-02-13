@@ -80,7 +80,14 @@ async function init() {
 
 // Setup all event listeners
 function setupEventListeners() {
-  document.getElementById('langSelect').addEventListener('change', (e) => {
+  // Set initial language selector value from localStorage
+  const currentLang = localStorage.getItem('lang') || 'en';
+  const langSelect = document.getElementById('langSelect');
+  if (langSelect) {
+    langSelect.value = currentLang;
+  }
+
+  langSelect.addEventListener('change', (e) => {
     setLanguage(e.target.value);
     location.reload();
   });
@@ -234,10 +241,11 @@ function renderDashboard(container) {
         <thead>
           <tr>
             <th>#</th>
-            <th>${t('date')}</th>
+            <th>${t('dateIssued')}</th>
+            <th>${t('dateDue')}</th>
+            <th>${t('invoiceNumber')}</th>
             <th>${t('client')}</th>
             <th>${t('description')}</th>
-            <th>${t('type')}</th>
             <th>${t('amount')}</th>
             <th>${t('status')}</th>
             <th>${t('actions')}</th>
@@ -245,7 +253,7 @@ function renderDashboard(container) {
         </thead>
         <tbody>
           ${state.invoices.length === 0 ? `
-            <tr><td colspan="8" class="text-center text-muted">${t('noData')}</td></tr>
+            <tr><td colspan="9" class="text-center text-muted">${t('noData')}</td></tr>
           ` : state.invoices.map((inv, i) => {
             const client = state.clients.find(c => c.id === inv.client_id);
             const currency = client?.currency || 'CZK';
@@ -256,9 +264,10 @@ function renderDashboard(container) {
             <tr>
               <td>${i + 1}</td>
               <td>${formatDate(inv.created_at)}</td>
+              <td>${formatDate(inv.due_date)}</td>
+              <td>${inv.invoice_number || '-'}</td>
               <td>${client?.name || '-'}</td>
               <td title="${description}">${truncatedDesc || '-'}</td>
-              <td>${t('invoice')}</td>
               <td>${formatCurrency(inv.total || 0)} ${currency}</td>
               <td>
                 <span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}">
@@ -266,7 +275,6 @@ function renderDashboard(container) {
                 </span>
               </td>
               <td>
-                <button class="action-btn" onclick="window.viewInvoice('${inv.id}')" title="${t('viewPdf')}">👁️</button>
                 <button class="action-btn" onclick="window.downloadInvoice('${inv.id}')" title="${t('downloadPdf')}">⬇️</button>
                 <button class="action-btn mark-paid-btn" data-id="${inv.id}" title="${t('markPaid')}">✓</button>
                 <button class="action-btn" onclick="window.deleteInvoice('${inv.id}')" title="${t('delete')}">🗑️</button>
